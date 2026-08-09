@@ -814,14 +814,6 @@ See the `LICENSE` file for the full license text.
 
 ---
 
-# 📬 Contact
-
-**Website:** `your-domain.com`
-
-**Email:** `support@your-domain.com`
-
----
-
 <p align="center">
 
 🇬🇧 **[Back to Top](#-vpn-subscription-panel--3x-ui-template)**
