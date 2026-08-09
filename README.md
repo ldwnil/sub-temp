@@ -1,6 +1,15 @@
 # 📡 VPN Subscription Panel — 3x-UI Template
 
 <p align="center">
+  <img
+    src="./image/sub.gif"
+    alt="VPN Subscription Panel"
+    width="500"
+  >
+</p>
+
+
+<p align="center">
 
 🇮🇷 **[فارسی](#فارسی)**    |    🇬🇧 **[English](#english)**
 
