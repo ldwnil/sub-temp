@@ -91,7 +91,7 @@
 فایل `sub.html` را در مسیر قالب‌های 3x-UI قرار دهید:
 
 ```bash
-sudo cp panel.html /etc/3x-ui/sub_templates/
+sudo cp sub.html /etc/3x-ui/sub_templates/
 ```
 
 ### 2. تنظیم Template در 3x-UI
@@ -435,7 +435,7 @@ A **modern, lightweight, and responsive** subscription panel designed for VPN se
 
 The template is built with **pure HTML, CSS, and JavaScript** and does not require any external framework.
 
-Everything is contained in a single `panel.html` file, making deployment, customization, and maintenance simple.
+Everything is contained in a single `sub.html` file, making deployment, customization, and maintenance simple.
 
 > 🌐 Persian and English are integrated into the same template, allowing users to switch languages directly from the panel interface.
 
@@ -499,7 +499,7 @@ Supported browsers:
 Copy `panel.html` to the 3x-UI template directory:
 
 ```bash
-sudo cp panel.html /etc/3x-ui/sub_templates/
+sudo cp sub.html /etc/3x-ui/sub_templates/
 ```
 
 ### 2. Configure 3x-UI
@@ -513,7 +513,7 @@ Subscription Settings
 Set the template path to:
 
 ```text
-/etc/3x-ui/sub_templates/panel.html
+/etc/3x-ui/sub_templates/sub.html
 ```
 
 Save the configuration.
