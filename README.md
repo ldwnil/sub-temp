@@ -2,9 +2,10 @@
 
 <p align="center">
   <img
-    src="./image/sub.gif"
+    src="https://raw.githubusercontent.com/ldwnil/sub-temp/main/image/sub.gif"
     alt="VPN Subscription Panel"
     width="500"
+    
   >
 </p>
 
