@@ -1998,6 +1998,20 @@ html[dir="ltr"] .pkg-popular {
             <p id="qrModalText" style="font-size:0.74rem;word-break:break-all;margin-top:0.6rem;direction:ltr;color:var(--text-secondary);"></p>
         </div>
     </div>
+    <div id="installOverlay" class="install-overlay" role="dialog" aria-modal="true">
+        <div id="installSheet" class="install-sheet">
+            <div class="install-drag-bar"></div>
+            <div class="install-head">
+                <div id="installAppIcon" class="install-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="install-info">
+                    <div id="installAppName" class="install-app-name"><span>پنل اشتراک</span></div>
+                    <div id="installAppSub" class="install-app-sub"><span>نصب به عنوان اپلیکیشن</span></div>
+                </div>
+            </div>
+            <div id="installSteps" class="install-steps"></div>
+            <div class="install-btns"><button type="button" class="install-later" id="installLaterBtn">بعداً</button><button class="btn btn-primary" type="button" id="installActionBtn" style="display:none;"><i class="fa-solid fa-download"></i> نصب</button></div>
+        </div>
+    </div>
     <div class="toast hide" role="status" data-bs-animation="false" id="toastMessage" aria-live="polite"><span>Copied!</span></div>
     <script src="assets/js/jquery.min.js"></script>
     <script src="assets/bootstrap/js/bootstrap.min.js"></script>
@@ -2007,928 +2021,102 @@ html[dir="ltr"] .pkg-popular {
 
 </html>
 <script>
- // ======================== USER CONFIG ========================
-  // راهنما: true = فعال  /  false = غیرفعال
+// ======================== USER CONFIG ========================
+const ENABLE_INSTALL_POPUP = true;
+const ENABLE_SERVICES_TAB = true;
 
-  /** نمایش پاپ‌آپ نصب وب‌اپلیکیشن برای iOS و Android */
-  const ENABLE_INSTALL_POPUP = true;
+const SERVICES_PACKAGES = [
+  { label: "Lite",    volume: "10 GB",  days: 30, price: 170000 },
+  { label: "Plus",    volume: "20 GB",  days: 30, price: 300000, popular: true },
+  { label: "Pro",     volume: "30 GB",  days: 30, price: 450000 },
+  { label: "Pro-Plus", volume: "40 GB", days: 30, price: 600000 },
+];
 
-  /** نمایش تب خدمات و قیمت بسته‌ها در داک */
-  const ENABLE_SERVICES_TAB = true;
-
-  /**
-   * بسته‌های سرویس — هر آیتم:
-   *   label   : نام بسته
-   *   volume  : حجم (رشته آزاد)
-   *   days    : تعداد روز
-   *   price   : قیمت به تومان
-   *   popular : true = نشان‌گذار «پرفروش» (اختیاری)
-   */
-  const SERVICES_PACKAGES = [
-    { label: "Lite",    volume: "10 GB",  days: 30, price: 170000 },
-    { label: "Plus", volume: "20 GB",  days: 30, price: 300000, popular: true },
-    { label: "Pro", volume: "30 GB", days: 30, price: 450000 },
-    { label: "Pro-Plus", volume: "40 GB", days: 30, price: 600000 },
-  ];
-
-// ======================== اخبار استاتیک (دستی) ========================
-// emoji : 📢 , 🌐 , 
+// ======================== STATIC NEWS (editable) ========================
+// date format: YYYY-MM-DD, time format: any string (e.g. "9:00 AM" or "21:30")
 const STATIC_NEWS = [
-   {
-    title: "🌐 وجود برخی اختلال ها",
-    body: " باتوجه به تغیرات زیرساختی اینترنت کشور  شاهد برخی اختلال ها هستیم که پیشبینی میشه با مرور زمان این اختلالات از سمت زیر ساخت رفع بشه",
-    date: "11:06 AM  1405-05-16"
+  {
+    title: "🌐 Service disruption",
+    body: "Due to infrastructure changes, some interruptions may occur. They should resolve over time.",
+    date: "1405-05-16",
+    time: "11:06 AM"
   },
   {
-    title: "📢 به‌روزرسانی جدید",
-    body: "نسخه جدید پنل با امکانات بهبود یافته منتشر شد. لطفاً برای استفاده از قابلیت‌های جدید، صفحه را رفرش کنید.",
-    date: "9:00 AM  1405-05-16"
+    title: "📢 New update",
+    body: "A new panel version with improved features has been released. Refresh the page to use them.",
+    date: "1405-05-16",
+    time: "9:00 AM"
   }
 ];
 
-  // ===========================================================
-
-  // ======================== VARIABLES FROM BACKEND ========================
-  const templateVars = {
-    sId: "{{ .sId }}", enabled: "{{ .enabled }}",
-    download: "{{ .download }}", upload: "{{ .upload }}", total: "{{ .total }}", used: "{{ .used }}", remained: "{{ .remained }}",
-    expire: "{{ .expire }}", lastOnline: "{{ .lastOnline }}",
-    downloadByte: "{{ .downloadByte }}", uploadByte: "{{ .uploadByte }}", totalByte: "{{ .totalByte }}",
-    subUrl: "{{ .subUrl }}", subJsonUrl: "{{ .subJsonUrl }}", subClashUrl: "{{ .subClashUrl }}",
-    subTitle: "{{ .subTitle }}", subSupportUrl: "{{ .subSupportUrl }}",
-    links: `{{ range .links }}{{ . }}
-{{ end }}`,
-    emails: `{{ range .emails }}{{ . }}
-{{ end }}`,
-    datepicker: "{{ .datepicker }}", result: "{{ .subUrl }}", jsonUrl: "{{ .subJsonUrl }}", clashUrl: "{{ .subClashUrl }}"
-  };
-
-  const BYTES_IN_KB = 1024;
-  const BYTES_IN_MB = 1024 ** 2;
-  const BYTES_IN_GB = 1024 ** 3;
-
-  function normalizeDigits(str) {
-    if (typeof str !== 'string') return str;
-    const persian = '۰۱۲۳۴۵۶۷۸۹';
-    const arabic = '٠١٢٣٤٥٦٧٨٩';
-    return str.replace(/[۰-۹]/g, c => persian.indexOf(c)).replace(/[٠-٩]/g, c => arabic.indexOf(c));
+// ======================== JALALI TO GREGORIAN CONVERTER ========================
+function jalaliToGregorian(jy, jm, jd) {
+  jy = Number(jy); jm = Number(jm); jd = Number(jd);
+  if (jy < 1 || jy > 1500) return null;
+  let dayOfYear = (jm <= 6) ? (jm - 1) * 31 + jd : 186 + (jm - 7) * 30 + jd;
+  let leapYears = 0;
+  for (let y = 1; y < jy; y++) {
+    if ((y % 4 === 0 && y % 100 !== 0) || y % 500 === 0) leapYears++;
   }
-  function isPlaceholder(v) { return typeof v === "string" && v.includes("{{") && v.includes("}}"); }
-  function normalize(v, fb) { let t = String(v ?? "").trim(); if (!t || isPlaceholder(t)) return fb; return t; }
-  function toNumber(v) {
-    let val = normalize(v, "");
-    if (!val) return null;
-    let cleaned = normalizeDigits(val).replace(/[٬,]/g, '').replace(/٫/g, '.');
-    let n = Number(cleaned);
-    return isNaN(n) ? null : n;
-  }
-  function isUnlimitedText(v) { return /unlimited|infinite|∞|نامحدود/i.test(String(v ?? "")); }
-  function parseTrafficToBytes(val) {
-    let text = normalize(val, "");
-    if (!text) return null;
-    if (isUnlimitedText(text)) return 0;
-    let normalizedNum = normalizeDigits(text);
-    let match = normalizedNum.match(/-?\d+(?:\.\d+)?/);
-    if (!match) return null;
-    let amount = parseFloat(match[0]);
-    let multi = 1;
-    if (/tb|ترابایت/i.test(normalizedNum)) multi = 1024**4;
-    else if (/gb|گیگابایت/i.test(normalizedNum)) multi = BYTES_IN_GB;
-    else if (/mb|مگابایت/i.test(normalizedNum)) multi = 1048576;
-    return amount * multi;
-  }
-  function parseExpireIso(exp) {
-    let ts = toNumber(exp);
-    if (ts === null || ts === 0) return null;
-    let ms = ts < 1e12 ? ts * 1000 : ts;
-    let d = new Date(ms);
-    return isNaN(d.getTime()) ? null : d.toISOString();
-  }
-  function parseEmails(raw) {
-    let txt = normalize(raw, "");
-    if (!txt) return [];
-    if (txt.startsWith("[") && txt.endsWith("]")) try { let arr = JSON.parse(txt); return Array.isArray(arr) ? arr : []; } catch(e) {}
-    let items = txt.split(/[,\s]+/).filter(Boolean);
-    return [...new Set(items)];
-  }
-  function parseLinks(raw) {
-    let txt = normalize(raw, "");
-    return txt ? txt.split(/\r?\n/).filter(l => l.trim()) : [];
-  }
-
-  // Build model
-  let totalByteNum = toNumber(templateVars.totalByte) ?? parseTrafficToBytes(templateVars.total);
-  let uploadByteNum = toNumber(templateVars.uploadByte) ?? parseTrafficToBytes(templateVars.upload);
-  let downloadByteNum = toNumber(templateVars.downloadByte) ?? parseTrafficToBytes(templateVars.download);
-  if (uploadByteNum === null) uploadByteNum = 0;
-  if (downloadByteNum === null) downloadByteNum = 0;
-  let usedBytes = (isNaN(uploadByteNum) ? 0 : uploadByteNum) + (isNaN(downloadByteNum) ? 0 : downloadByteNum);
-  let isDataUnlimited = (totalByteNum !== null && totalByteNum <= 0) || isUnlimitedText(templateVars.total);
-  let totalGB = (totalByteNum !== null && totalByteNum > 0) ? totalByteNum / BYTES_IN_GB : 0;
-  let usedGB = usedBytes / BYTES_IN_GB;
-  let remainGB = (!isDataUnlimited && totalGB > 0) ? Math.max(0, totalGB - usedGB) : 0;
-  let subLink = normalize(templateVars.subUrl, "") || normalize(templateVars.result, "") || "";
-  let emailsList = parseEmails(templateVars.emails);
-  let configsList = parseLinks(templateVars.links);
-  let expireISO = parseExpireIso(templateVars.expire);
-  let isEnabled = String(templateVars.enabled).toLowerCase() !== "false";
-
-  // i18n
-  const locales = {
-    fa: { used: "مصرف شده", usage: "مصرف", total: "کل حجم", remain: "باقی‌مانده", expiry: "انقضا", days: "روز", hours: "ساعت", minutes: "دقیقه", copy: "کپی لینک اشتراک", qr: "نمایش QR", active: "فعال", inactive: "غیرفعال", unlimited: "نامحدود", copyDone: "کپی شد!", copyFail: "خطا", download: "دریافت", upload: "ارسال", configTitle: "کانفیگ‌ها", appsTitle: "برنامه‌های پیشنهادی", noConfig: "کانفیگی موجود نیست", lastOnline: "آخرین آنلاین", timeExpired: "منقضی شده", timeUnlimited: "نامحدود", remainTime: "زمان باقیمانده", subscriptionHub: "پنل اشتراک", volumeUnit: "گیگابایت", copyAll: "کپی همه", noConfigToCopy: "کانفیگی برای کپی وجود ندارد", greeting: "خوش آمدید", premium: "اشتراک ویژه", status: "وضعیت", remainDays: "روز باقی‌مانده", remainVol: "حجم باقی‌مانده", navHome: "خانه", navStatus: "وضعیت", navConfig: "کانفیگ", navApps: "برنامه‌ها", chartTitle: "مصرف ۷ روز اخیر", chartFrom: "از ", chartTo: "تا امروز", navServices: "خدمات", servicesTitle: "خدمات و بسته‌ها" },
-    en: { used: "Used", usage: "Usage", total: "Total", remain: "Remaining", expiry: "Expiry", days: "Days", hours: "Hours", minutes: "Mins", copy: "Copy Subscription", qr: "Show QR", active: "Active", inactive: "Inactive", unlimited: "Unlimited", copyDone: "Copied!", copyFail: "Failed", download: "Download", upload: "Upload", configTitle: "Configs", appsTitle: "Client Apps", noConfig: "No configs available", lastOnline: "Last online", timeExpired: "Expired", timeUnlimited: "No limit", remainTime: "Remaining time", subscriptionHub: "Subscription Hub", volumeUnit: "GB", copyAll: "Copy All", noConfigToCopy: "No configs to copy", greeting: "Welcome back", premium: "Premium Access", status: "Status", remainDays: "Days left", remainVol: "Data left", navHome: "Home", navStatus: "Status", navConfig: "Config", navApps: "Apps", chartTitle: "Usage — last 7 days", chartFrom: "From ", chartTo: "To Today", navServices: "Services", servicesTitle: "Plans & Pricing" }
-  };
-  let currentLang = localStorage.getItem("nexus_lang") || "fa";
-  let isDark = (localStorage.getItem("nexus_theme") || "dark") !== "light";
-  let countdownInterval = null;
-
-  function t(key) { return locales[currentLang][key] || key; }
-  function volumeUnit() { return t("volumeUnit"); }
-  function volumeUnitByBytes(bytes) {
-    const n = Number(bytes);
-    const safeBytes = Number.isFinite(n) && n > 0 ? n : 0;
-    if (isPersianUI()) {
-      if (safeBytes < BYTES_IN_KB) return "بایت";
-      if (safeBytes < BYTES_IN_MB) return "کیلوبایت";
-      if (safeBytes < BYTES_IN_GB) return "مگابایت";
-      return "گیگابایت";
-    }
-    if (safeBytes < BYTES_IN_KB) return "B";
-    if (safeBytes < BYTES_IN_MB) return "KB";
-    if (safeBytes < BYTES_IN_GB) return "MB";
-    return "GB";
-  }
-  function formatBytesParts(bytes, digits = 1) {
-    const n = Number(bytes);
-    const safeBytes = Number.isFinite(n) && n > 0 ? n : 0;
-    let value = safeBytes;
-    if (safeBytes < BYTES_IN_KB) value = safeBytes;
-    else if (safeBytes < BYTES_IN_MB) value = safeBytes / BYTES_IN_KB;
-    else if (safeBytes < BYTES_IN_GB) value = safeBytes / BYTES_IN_MB;
-    else value = safeBytes / BYTES_IN_GB;
-    return { value: formatFixed(value, digits), unit: volumeUnitByBytes(safeBytes) };
-  }
-  function formatBytes(bytes, digits = 1) {
-    const parts = formatBytesParts(bytes, digits);
-    return `${parts.value} ${parts.unit}`;
-  }
-  function setVolumeStat(valueId, unitId, bytes, digits = 1) {
-    const valueEl = document.getElementById(valueId);
-    if (!valueEl) return;
-    const parts = formatBytesParts(bytes, digits);
-    valueEl.innerText = parts.value;
-    const unitEl = unitId ? document.getElementById(unitId) : valueEl.parentElement?.querySelector(".stat-unit");
-    if (unitEl) unitEl.innerText = parts.unit;
-  }
-  function toFaDigits(value) { return String(value ?? "").replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]); }
-  function formatDisplay(value) { return isPersianUI() ? toFaDigits(value) : String(value ?? ""); }
-  function formatFixed(value, digits = 1) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return formatDisplay("0");
-    const rounded = Number(n.toFixed(digits));
-    const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(digits).replace(/0+$/, "").replace(/\.$/, "");
-    return formatDisplay(text);
-  }
-  function formatInteger(value) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return isPersianUI() ? "۰" : "0";
-    return formatDisplay(Math.floor(n));
-  }
-  function isPersianUI() { return currentLang === "fa" || document.documentElement.getAttribute("dir") === "rtl"; }
-
-  function parseSafeTimestamp(raw) {
-    const valOriginal = normalize(raw, "");
-    if (!valOriginal) return null;
-    const val = normalizeDigits(valOriginal).trim();
-    if (!val || /^(0|-1|null|undefined|never|none|نامشخص|هیچ)$/i.test(val)) return null;
-    if (/^\d{2,5}\s*[\/-]\s*\d{1,2}\s*[\/-]\s*\d{1,2}/.test(val)) return null;
-    const match = val.match(/-?\d+(?:\.\d+)?/);
-    if (!match) return null;
-    const n = Number(match[0]);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    const now = Date.now();
-    const candidates = [];
-    const add = (ms) => {
-      if (!Number.isFinite(ms) || ms <= 0) return;
-      const d = new Date(ms);
-      if (isNaN(d.getTime())) return;
-      const y = d.getFullYear();
-      if (y >= 2000 && y <= 2100) candidates.push({ date: d, score: Math.abs(ms - now) });
-    };
-    add(n); add(n * 1000); add(n / 10); add(n / 100); add(n / 1000);
-    add(n / 10000); add(n / 100000); add(n / 1000000); add(n / 1000000000);
-    if (!candidates.length) return null;
-    candidates.sort((a, b) => a.score - b.score);
-    return candidates[0].date;
-  }
-  function pad2(value) { return String(value).padStart(2, "0"); }
-  function gregorianToJalali(gy, gm, gd) {
-    const gDm = [0,31,59,90,120,151,181,212,243,273,304,334];
-    let jy = (gy <= 1600) ? 0 : 979;
-    gy -= (gy <= 1600) ? 621 : 1600;
-    const gy2 = (gm > 2) ? (gy + 1) : gy;
-    let days = 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) - 80 + gd + gDm[gm - 1];
-    jy += 33 * Math.floor(days / 12053);
-    days %= 12053;
-    jy += 4 * Math.floor(days / 1461);
-    days %= 1461;
-    if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
-    const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
-    const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
-    return [jy, jm, jd];
-  }
-  function formatDateTime(date) {
-    if (!date || isNaN(date.getTime())) return "";
-    if (isPersianUI()) {
-      const [jy, jm, jd] = gregorianToJalali(date.getFullYear(), date.getMonth() + 1, date.getDate());
-      return toFaDigits(`${jy}/${pad2(jm)}/${pad2(jd)}، ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`);
-    }
-    return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}, ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
-  }
-  function formatDateOnly(date) {
-    if (!date || isNaN(date.getTime())) return "";
-    if (isPersianUI()) {
-      const [jy, jm, jd] = gregorianToJalali(date.getFullYear(), date.getMonth() + 1, date.getDate());
-      return toFaDigits(`${jy}/${pad2(jm)}/${pad2(jd)}`);
-    }
-    return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
-  }
-  function normalizeFormattedDateText(raw) {
-    const valOriginal = normalize(raw, "");
-    if (!valOriginal) return "";
-    const val = normalizeDigits(valOriginal).trim();
-    const m = val.match(/^(\d{2,5})\s*([\/-])\s*(\d{1,2})\s*\2\s*(\d{1,2})(.*)$/);
-    if (!m) return "";
-    const y = Number(m[1]);
-    if ((y >= 1200 && y <= 1700) || (y >= 1900 && y <= 2100)) {
-      return isPersianUI() ? toFaDigits(val) : val;
-    }
-    return "";
-  }
-  function renderLastOnline() {
-    const box = document.getElementById("lastOnlineInfo");
-    const parsed = parseSafeTimestamp(templateVars.lastOnline);
-    const formattedRaw = normalizeFormattedDateText(templateVars.lastOnline);
-    const finalText = parsed ? formatDateTime(parsed) : formattedRaw;
-    box.innerHTML = finalText ? `<i class="fa-regular fa-eye"></i> ${t("lastOnline")}: ${finalText}` : "";
-  }
-
-  // DOM helpers
-  function showToast(msg) { let toast = document.getElementById("toastMessage"); toast.innerText = msg; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 1700); }
-  function showQR(data, title, label) {
-    if (!data) { showToast(t("copyFail")); return; }
-    document.getElementById("modalQrTitle").innerText = title;
-    document.getElementById("qrModalImg").src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(data)}`;
-    document.getElementById("qrModalText").innerText = label || data;
-    document.getElementById("qrModal").classList.add("show");
-  }
-  function closeModal() { document.getElementById("qrModal").classList.remove("show"); }
-  async function copyText(text, successMsg) {
-    if (!text) { showToast(t("copyFail")); return; }
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(successMsg);
-    } catch(e) {
-      // Fallback for older webviews / non-secure contexts
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        showToast(successMsg);
-      } catch(e2) {
-        showToast(t("copyFail"));
-      }
-    }
-  }
-  function escapeHtml(str) { return String(str).replace(/[&<>"']/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; if(m==='"') return '&quot;'; if(m==="'") return '&#39;'; return m;}); }
-
-// ======================== NEWS (استاتیک) ========================
-function fetchNews() {
-  const newsContainer = document.getElementById('newsContent');
-  if (STATIC_NEWS && STATIC_NEWS.length > 0) {
-    newsContainer.innerHTML = STATIC_NEWS.map(item => 
-      `<div style="padding:0.6rem 0; border-bottom:1px solid var(--border);">
-        <strong style="color:var(--text-primary);">${escapeHtml(item.title || '')}</strong>
-        <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.2rem;">${escapeHtml(item.body || '')}</p>
-        <small style="color:var(--text-muted);">${escapeHtml(item.date || '')}</small>
-      </div>`
-    ).join('');
-  } else {
-    newsContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center;">هیچ خبری موجود نیست.</p>';
-  }
+  const baseJulianDay = 1948320;
+  let totalDays = (jy - 1) * 365 + leapYears + (dayOfYear - 1);
+  let julianDay = baseJulianDay + totalDays;
+  let a = julianDay + 32044;
+  let b = Math.floor((4 * a + 3) / 146097);
+  let c = a - Math.floor((146097 * b) / 4);
+  let d = Math.floor((4 * c + 3) / 1461);
+  let e = c - Math.floor((1461 * d) / 4);
+  let m = Math.floor((5 * e + 2) / 153);
+  let day = e - Math.floor((153 * m + 2) / 5) + 1;
+  let month = m + 3 - 12 * Math.floor(m / 10);
+  let year = 100 * b + d - 4800 + Math.floor(m / 10);
+  return { year, month, day };
 }
 
-function showNewsModal() {
-  document.getElementById('newsModal').classList.add('show');
-  fetchNews();
+function buildIsoDate(jalaliDate, timeStr) {
+  if (!jalaliDate || !timeStr) return null;
+  const parts = jalaliDate.split('-');
+  if (parts.length !== 3) return null;
+  const jy = parseInt(parts[0], 10);
+  const jm = parseInt(parts[1], 10);
+  const jd = parseInt(parts[2], 10);
+  if (isNaN(jy) || isNaN(jm) || isNaN(jd)) return null;
+  const greg = jalaliToGregorian(jy, jm, jd);
+  if (!greg) return null;
+  let hours = 0, minutes = 0;
+  const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (timeMatch) {
+    hours = parseInt(timeMatch[1], 10);
+    minutes = parseInt(timeMatch[2], 10);
+    const ampm = timeMatch[3] ? timeMatch[3].toUpperCase() : '';
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+  }
+  const y = String(greg.year).padStart(4, '0');
+  const m = String(greg.month).padStart(2, '0');
+  const d = String(greg.day).padStart(2, '0');
+  const h = String(hours).padStart(2, '0');
+  const min = String(minutes).padStart(2, '0');
+  return `${y}-${m}-${d}T${h}:${min}:00`;
 }
 
-function closeNewsModal() {
-  document.getElementById('newsModal').classList.remove('show');
+function normalizeNews(newsArray) {
+  return newsArray.map(item => ({
+    ...item,
+    isoDate: buildIsoDate(item.date, item.time || '00:00') || ''
+  }));
 }
 
+const NORMALIZED_NEWS = normalizeNews(STATIC_NEWS);
 
-  // ======================== LIQUID BUBBLE (usage ring) ========================
-  // FIX: the canvas bitmap is now resized to the REAL rendered size of the
-  // container (times devicePixelRatio) via ResizeObserver — so the circle is
-  // always crisp and perfectly round, in browser, mobile and PWA modes.
-  let liquidAnimationId = null;
-  let targetLiquidPercent = 0;
-  let wavePhase = 0;
-  let liquidCtx = null;
-  let liquidCanvas = null;
+// ======================== NOTIFICATION ========================
+const LAST_VISIT_KEY = 'nexus_last_news_visit';
 
-  // Usage color: Green -> Yellow -> Orange -> Red
-  function getUsageColor(percent, unlimited = false) {
-    if (unlimited) return "#4f9bff";
-    const p = Math.max(0, Math.min(100, percent));
-    let r, g, b;
-    if (p <= 40) {
-      // Light green -> Green
-      const k = p / 40;
-      r = Math.round(134 - (134 - 34) * k);
-      g = Math.round(239 - (239 - 197) * k);
-      b = Math.round(172 - (172 - 94) * k);
-    } else if (p <= 60) {
-      // Green -> Yellow -> Orange
-      const k = (p - 40) / 20;
-      r = Math.round(34 + (249 - 34) * k);
-      g = Math.round(197 - (197 - 115) * k);
-      b = Math.round(94 - (94 - 22) * k);
-    } else {
-      // Orange -> Red
-      const k = (p - 60) / 40;
-      r = Math.round(249 + (239 - 249) * k);
-      g = Math.round(115 - (115 - 68) * k);
-      b = Math.round(22 - (22 - 68) * k);
-    }
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-
-  function resizeLiquidCanvas() {
-    if (!liquidCanvas) return;
-    const wrap = liquidCanvas.parentElement;
-    if (!wrap) return;
-    const rect = wrap.getBoundingClientRect();
-    // Force a perfect square based on the smaller rendered dimension
-    const cssSize = Math.max(1, Math.round(Math.min(rect.width, rect.height)));
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const pixelSize = Math.round(cssSize * dpr);
-    if (liquidCanvas.width !== pixelSize || liquidCanvas.height !== pixelSize) {
-      liquidCanvas.width = pixelSize;
-      liquidCanvas.height = pixelSize;
-    }
-  }
-
-  function drawLiquidBubble() {
-    if (!liquidCtx || !liquidCanvas) return;
-    const size = liquidCanvas.width; // always square (see resizeLiquidCanvas)
-    const center = size / 2;
-    const radius = size / 2 - Math.max(6, size * 0.065);
-    const unlimitedMode = isDataUnlimited || totalGB <= 0;
-    const percentToShow = unlimitedMode ? 100 : targetLiquidPercent;
-    const fillColor = getUsageColor(percentToShow, unlimitedMode);
-    const fillHeight = (percentToShow / 100) * (radius * 2);
-    const startY = size - fillHeight - (size / 2 - radius);
-
-    liquidCtx.clearRect(0, 0, size, size);
-
-    // Background circle
-    liquidCtx.beginPath();
-    liquidCtx.arc(center, center, radius, 0, Math.PI * 2);
-    liquidCtx.fillStyle = "rgba(255,255,255,0.06)";
-    liquidCtx.fill();
-
-    // Liquid clip
-    liquidCtx.save();
-    liquidCtx.beginPath();
-    liquidCtx.arc(center, center, radius, 0, Math.PI * 2);
-    liquidCtx.clip();
-
-    // Liquid (wave scaled relative to canvas size)
-    liquidCtx.fillStyle = fillColor;
-    liquidCtx.beginPath();
-    liquidCtx.moveTo(0, size);
-    const waveAmp = size * 0.027;
-    const waveLen = size * 0.118;
-    for (let x = 0; x <= size; x++) {
-      const y = startY + Math.sin((x / waveLen) + wavePhase) * waveAmp;
-      liquidCtx.lineTo(x, y);
-    }
-    liquidCtx.lineTo(size, size);
-    liquidCtx.closePath();
-    liquidCtx.fill();
-    liquidCtx.restore();
-
-    // Ring border
-    liquidCtx.beginPath();
-    liquidCtx.arc(center, center, radius, 0, Math.PI * 2);
-    liquidCtx.strokeStyle = fillColor;
-    liquidCtx.globalAlpha = 0.55;
-    liquidCtx.lineWidth = Math.max(2, size * 0.014);
-    liquidCtx.stroke();
-    liquidCtx.globalAlpha = 1;
-
-    wavePhase += 0.08;
-    liquidAnimationId = requestAnimationFrame(drawLiquidBubble);
-  }
-
-  function initLiquidBubble() {
-    liquidCanvas = document.getElementById("liquidBubbleCanvas");
-    if (!liquidCanvas) return;
-    liquidCtx = liquidCanvas.getContext("2d");
-    resizeLiquidCanvas();
-    if (!liquidAnimationId) drawLiquidBubble();
-    // Keep the bitmap in sync with the rendered size (rotation, PWA resize…)
-    if ("ResizeObserver" in window && !liquidCanvas._ro) {
-      const ro = new ResizeObserver(() => resizeLiquidCanvas());
-      ro.observe(liquidCanvas.parentElement);
-      liquidCanvas._ro = ro;
-    }
-  }
-
-  function setLiquidPercent(percent, unlimitedFlag) {
-    targetLiquidPercent = unlimitedFlag ? 100 : Math.min(100, Math.max(0, percent));
-    const ringText = document.getElementById("ringPercentText");
-    const ringLabel = document.getElementById("ringUsageLabel");
-    if (unlimitedFlag) {
-      ringText.innerHTML = "∞";
-    } else {
-      ringText.innerHTML = formatInteger(targetLiquidPercent) + "%";
-    }
-    ringText.style.color = "#ffffff";
-    ringLabel.style.color = "#ffffff";
-  }
-
-  // ======================== 7-DAY SPARKLINE CHART ========================
-  // FIX: the SVG stretches freely (preserveAspectRatio="none") while the data
-  // points are HTML dots positioned by percentage — they always stay perfectly
-  // round and have large 40px-wide touch targets for mobile interaction.
-  let activeChartDot = null;
-
-  function hideChartTooltip() {
-    const tooltip = document.getElementById("chartTooltip");
-    const guideLine = document.getElementById("chartGuideLine");
-    if (tooltip) tooltip.style.display = "none";
-    if (guideLine) guideLine.style.display = "none";
-    if (activeChartDot) { activeChartDot.classList.remove("is-active"); activeChartDot = null; }
-  }
-
-  function drawInteractiveSparkline() {
-    const container = document.getElementById("interactiveChartContainer");
-    if (!container) return;
-    const totalUsedGB = usedBytes / BYTES_IN_GB;
-    const dailyWeights = [0.08, 0.12, 0.15, 0.11, 0.18, 0.22, 0.14];
-    const dailyUsageGB = dailyWeights.map(w => totalUsedGB * w);
-
-    const daysData = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      daysData.push({ date: d, usage: dailyUsageGB[6 - i] });
-    }
-
-    document.getElementById("chartStartDateLabel").innerText = t("chartFrom") + formatDateOnly(daysData[0].date);
-    document.getElementById("chartEndDateLabel").innerText = t("chartTo") + formatDateOnly(daysData[6].date);
-
-    const maxVal = Math.max(...dailyUsageGB, 0.5);
-    const heightMultiplier = 16 / maxVal;
-
-    const points = daysData.map((d, index) => {
-      const x = 4 + index * (92 / 6); // 4% padding at both ends so edge dots aren't clipped
-      const y = 22 - (d.usage * heightMultiplier);
-      return { x, y, data: d };
-    });
-
-    let lineD = `M ${points[0].x} ${points[0].y}`;
-    let areaD = `M ${points[0].x} 25 L ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      lineD += ` L ${points[i].x} ${points[i].y}`;
-      areaD += ` L ${points[i].x} ${points[i].y}`;
-    }
-    areaD += ` L ${points[points.length - 1].x} 25 Z`;
-
-    document.getElementById("chartLinePath").setAttribute("d", lineD);
-    document.getElementById("chartAreaPath").setAttribute("d", areaD);
-
-    const dotsLayer = document.getElementById("chartDotsLayer");
-    dotsLayer.innerHTML = "";
-    const guideLine = document.getElementById("chartGuideLine");
-    const tooltip = document.getElementById("chartTooltip");
-    const wrap = document.getElementById("chartWrap");
-
-    hideChartTooltip();
-
-    points.forEach((pt) => {
-      const leftPct = pt.x;             // % of width
-      const topPct = (pt.y / 25) * 100; // % of height
-
-      const dot = document.createElement("div");
-      dot.className = "chart-dot";
-      dot.style.left = leftPct + "%";
-      dot.style.top = topPct + "%";
-
-      const hit = document.createElement("button");
-      hit.type = "button";
-      hit.className = "chart-hit";
-      hit.style.left = leftPct + "%";
-      hit.setAttribute("aria-label", formatDateOnly(pt.data.date));
-
-      const showTooltip = () => {
-        hideChartTooltip();
-        activeChartDot = dot;
-        dot.classList.add("is-active");
-
-        guideLine.style.display = "block";
-        guideLine.style.left = leftPct + "%";
-
-        const rect = wrap.getBoundingClientRect();
-        const rawX = (leftPct / 100) * rect.width;
-        const rawY = (topPct / 100) * rect.height;
-
-        tooltip.style.display = "flex";
-        const dateStr = formatDateOnly(pt.data.date);
-        const usageStr = formatFixed(pt.data.usage, 2) + " " + (isPersianUI() ? "گیگابایت" : "GB");
-        tooltip.innerHTML = `<strong>${dateStr}</strong><span>${usageStr}</span>`;
-
-        // Clamp inside the wrap so it never overflows on narrow phones
-        const tw = tooltip.offsetWidth || 120;
-        const clampedX = Math.min(Math.max(rawX, tw / 2 + 4), rect.width - tw / 2 - 4);
-        const th = tooltip.offsetHeight || 44;
-        const above = rawY - th - 12;
-        tooltip.style.left = clampedX + "px";
-        tooltip.style.top = (above > 0 ? above : rawY + 14) + "px";
-        tooltip.style.transform = "translateX(-50%)";
-      };
-
-      hit.addEventListener("mouseenter", showTooltip);
-      hit.addEventListener("mouseleave", hideChartTooltip);
-      hit.addEventListener("focus", showTooltip);
-      hit.addEventListener("blur", hideChartTooltip);
-      hit.addEventListener("click", (e) => { e.stopPropagation(); showTooltip(); });
-      hit.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); showTooltip(); }, { passive: false });
-
-      dotsLayer.appendChild(hit);
-      dotsLayer.appendChild(dot);
-    });
-  }
-  // Tap anywhere else closes the chart tooltip (mobile friendly)
-  document.addEventListener("touchstart", (e) => {
-    if (!e.target.closest || !e.target.closest("#chartWrap")) hideChartTooltip();
-  }, { passive: true });
-
-  // ======================== RENDER FUNCTIONS ========================
-  function computeIsActive(unlimitedFlag) {
-    return isEnabled && (!expireISO || new Date(expireISO) > new Date()) && (!(!unlimitedFlag && usedGB >= totalGB && totalGB > 0));
-  }
-
-  function renderStatsAndRing() {
-    let unlimitedFlag = isDataUnlimited || totalGB <= 0;
-    let usedPercent = (!unlimitedFlag && totalGB > 0) ? Math.min(100, Math.max(0, (usedGB / totalGB) * 100)) : 0;
-    let remainBytes = (!unlimitedFlag && totalByteNum !== null && totalByteNum > 0) ? Math.max(0, totalByteNum - usedBytes) : 0;
-
-    setVolumeStat("usedStatValue", "usedUnit", usedBytes, 1);
-    if (unlimitedFlag) {
-      document.getElementById("totalStatValue").innerHTML = "∞";
-      document.getElementById("remainStatValue").innerHTML = "∞";
-    } else {
-      setVolumeStat("totalStatValue", null, totalByteNum || 0, 1);
-      setVolumeStat("remainStatValue", null, remainBytes, 1);
-    }
-    setLiquidPercent(usedPercent, unlimitedFlag);
-
-    document.getElementById("downloadVal").innerHTML = formatBytes(downloadByteNum || 0, 1);
-    document.getElementById("uploadVal").innerHTML = formatBytes(uploadByteNum || 0, 1);
-    document.getElementById("downloadLabel").innerText = t("download");
-    document.getElementById("uploadLabel").innerText = t("upload");
-
-    let isActive = computeIsActive(unlimitedFlag);
-    let statusSpan = document.getElementById("statusChip");
-    statusSpan.innerHTML = `<i class="fa-solid ${isActive ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> ${isActive ? t("active") : t("inactive")}`;
-    statusSpan.classList.toggle("is-inactive", !isActive);
-
-    if (expireISO && new Date(expireISO) > new Date())
-      document.getElementById("expiryDatePreview").innerText = formatDateOnly(new Date(expireISO));
-    else if (!expireISO)
-      document.getElementById("expiryDatePreview").innerText = t("timeUnlimited");
-    else
-      document.getElementById("expiryDatePreview").innerText = t("timeExpired");
-
-    drawInteractiveSparkline();
-  }
-
-  function renderExpiryCountdown() {
-    if (countdownInterval) clearInterval(countdownInterval);
-    if (!expireISO) {
-      document.getElementById("daysLeft").innerText = "∞";
-      document.getElementById("hoursLeft").innerText = "∞";
-      document.getElementById("minutesLeft").innerText = "∞";
-      document.getElementById("expiryTextLabel").innerText = isPersianUI() ? "اشتراک شما محدودیت زمانی ندارد" : "Your subscription has no time limit";
-      renderLastOnline();
-      return;
-    }
-    let end = new Date(expireISO).getTime();
-    const tick = () => {
-      let now = Date.now();
-      let diff = Math.max(0, end - now);
-      let days = Math.floor(diff / 86400000);
-      let hours = Math.floor((diff % 86400000) / 3600000);
-      let mins = Math.floor((diff % 3600000) / 60000);
-      document.getElementById("daysLeft").innerText = formatDisplay(days);
-      document.getElementById("hoursLeft").innerText = formatDisplay(hours);
-      document.getElementById("minutesLeft").innerText = formatDisplay(mins);
-      if (diff <= 0) clearInterval(countdownInterval);
-    };
-    tick(); // FIX: render immediately instead of waiting 1s
-    countdownInterval = setInterval(tick, 1000);
-    document.getElementById("expiryTextLabel").innerText = t("remainTime");
-    renderLastOnline();
-  }
-
-  function renderHome() {
-    let unlimitedFlag = isDataUnlimited || totalGB <= 0;
-    let isActive = computeIsActive(unlimitedFlag);
-    document.getElementById("heroTitle").innerText = getPanelTitle();
-    let name = (emailsList && emailsList.length > 0) ? emailsList[0] : "";
-    document.getElementById("heroGreeting").innerText = name ? `${t("greeting")}،` : t("greeting");
-
-    let sv = document.getElementById("homeStatusValue");
-    sv.innerText = isActive ? t("active") : t("inactive");
-    sv.style.color = isActive ? "var(--status-active-text)" : "var(--status-inactive-text)";
-
-    let daysEl = document.getElementById("homeDaysValue");
-    if (!expireISO) { daysEl.innerText = "∞"; }
-    else {
-      let diff = Math.max(0, new Date(expireISO).getTime() - Date.now());
-      daysEl.innerText = formatDisplay(Math.floor(diff / 86400000));
-    }
-
-    let volEl = document.getElementById("homeVolumeValue");
-    if (unlimitedFlag) { volEl.innerText = "∞"; }
-    else {
-      let remainBytes = (totalByteNum !== null && totalByteNum > 0) ? Math.max(0, totalByteNum - usedBytes) : 0;
-      volEl.innerHTML = formatBytes(remainBytes, 1);
-    }
-  }
-
-  function renderConfigs() {
-    let container = document.getElementById("configListContainer");
-    if (!configsList.length) {
-      container.innerHTML = `<div style="text-align:center;padding:2rem;">${t("noConfig")}</div>`;
-      document.getElementById("configCountBadge").innerText = formatDisplay(0);
-      return;
-    }
-    document.getElementById("configCountBadge").innerText = formatDisplay(configsList.length);
-    container.innerHTML = "";
-    configsList.forEach((cfg, idx) => {
-      let name = cfg.includes("#") ? decodeURIComponent(cfg.split("#").pop().replace(/\+/g, " ")) : `${t("configTitle")} ${formatDisplay(idx+1)}`;
-      let div = document.createElement("div"); div.className = "config-item";
-      div.innerHTML = `<div class="config-meta"><span class="config-name">${escapeHtml(name)}</span><div class="config-actions"><button type="button" class="mini-action copyConfigBtn" aria-label="Copy"><i class="fa-regular fa-copy"></i></button><button type="button" class="mini-action qrConfigBtn" data-name="${escapeHtml(name)}" aria-label="QR"><i class="fa-solid fa-qrcode"></i></button></div></div><div class="config-link">${escapeHtml(cfg.length > 80 ? cfg.substring(0, 80)+"..." : cfg)}</div>`;
-      let copyBtn = div.querySelector(".copyConfigBtn");
-      let qrBtn = div.querySelector(".qrConfigBtn");
-      copyBtn.dataset.raw = cfg;
-      qrBtn.dataset.raw = cfg;
-      copyBtn.addEventListener("click", (e) => { copyText(e.currentTarget.dataset.raw, t("copyDone")); });
-      qrBtn.addEventListener("click", (e) => { let link = e.currentTarget.dataset.raw; let n = e.currentTarget.dataset.name; showQR(link, `${n} (${t("configTitle")})`, link); });
-      container.appendChild(div);
-    });
-  }
-
-  function renderApps() {
-    let apps = [
-      { name: "Android", icon: "fa-brands fa-android", list: [{ n: "v2rayNG", url: "https://github.com/2dust/v2rayNG/releases" }, { n: "Happ", url: "https://play.google.com/store/apps/details?id=com.happproxy&pcampaignid=web_share" }] },
-      { name: "iOS", icon: "fa-brands fa-apple", list: [{ n: "Streisand", url: "https://apps.apple.com/us/app/streisand/id6450534064" }, { n: "Shadowrocket", url: "https://apps.apple.com/search?term=shadowrocket" }] },
-      { name: "Windows", icon: "fa-brands fa-windows", list: [{ n: "v2rayN", url: "https://github.com/2dust/v2rayN/releases" }, { n: "Nekoray", url: "https://github.com/MatsuriDayo/nekoray" }] },
-      { name: "macOS", icon: "fa-brands fa-apple", list: [{ n: "V2rayU", url: "https://github.com/yanue/V2rayU" }, { n: "Happ", url: "https://happ.app/" }] }
-    ];
-    let grid = document.getElementById("appsGridContainer");
-    grid.innerHTML = "";
-    apps.forEach(os => {
-      let card = document.createElement("div"); card.className = "app-card";
-      card.innerHTML = `<button type="button" class="app-toggle" aria-expanded="false"><span class="app-title"><i class="${os.icon}"></i><span>${os.name}</span></span><i class="fa-solid fa-chevron-down chev"></i></button><div class="app-links"></div>`;
-      let linksDiv = card.querySelector(".app-links");
-      os.list.forEach(app => { let a = document.createElement("a"); a.href = app.url; a.target="_blank"; a.rel="noopener"; a.className="app-link"; a.innerHTML = `<span>${app.n}</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>`; linksDiv.appendChild(a); });
-      const toggle = card.querySelector(".app-toggle");
-      toggle.addEventListener("click", () => {
-        const openCard = grid.querySelector(".app-card.open");
-        if (openCard && openCard !== card) {
-          openCard.classList.remove("open");
-          openCard.querySelector(".app-toggle")?.setAttribute("aria-expanded", "false");
-        }
-        const isOpen = card.classList.toggle("open");
-        toggle.setAttribute("aria-expanded", String(isOpen));
-      });
-      grid.appendChild(card);
-    });
-  }
-
-  function getPanelTitle() { return normalize(templateVars.subTitle, "") || t("subscriptionHub"); }
-
-  function updateUI() {
-    document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
-    document.documentElement.lang = currentLang === "fa" ? "fa" : "en";
-    document.documentElement.dir = currentLang === "fa" ? "rtl" : "ltr";
-    localStorage.setItem("nexus_theme", isDark ? "dark" : "light");
-    localStorage.setItem("nexus_lang", currentLang);
-    // Keep html background-color in sync with theme (fixes iOS PWA safe-area strip)
-    // --bg-soft is the gradient's end-colour so the safe-area zone blends seamlessly
-    document.documentElement.style.backgroundColor = isDark ? "#161a22" : "#f6f8fb";
-    document.querySelector('meta[name="theme-color"]').setAttribute("content", isDark ? "#161a22" : "#f6f8fb");
-    document.getElementById("themeIcon").className = isDark ? "fa-solid fa-sun" : "fa-solid fa-moon";
-
-    document.title = getPanelTitle();
-    document.getElementById("panelTitle").innerText = getPanelTitle();
-
-const brandMark = document.querySelector(".brand-mark");
-if (brandMark) {
-  brandMark.style.background = `url("data:image/svg+xml,${encodeURIComponent(PWA_ICON_SVG)}") center/cover no-repeat`;
-  brandMark.innerHTML = "";
-}
-
-    // labels
-    document.getElementById("premiumTagText").innerText = t("premium");
-    document.getElementById("homeStatusLabel").innerText = t("status");
-    document.getElementById("homeRemainLabel").innerText = t("remainDays");
-    document.getElementById("homeVolumeLabel").innerText = t("remainVol");
-    document.getElementById("copyMainText").innerText = t("copy");
-    document.getElementById("qrMainText").innerText = t("qr");
-
-    document.getElementById("usedStatLabel").innerText = t("used");
-    document.querySelectorAll(".stat-unit").forEach(el => { el.innerText = volumeUnit(); });
-    document.getElementById("totalStatLabel").innerText = t("total");
-    document.getElementById("remainStatLabel").innerText = t("remain");
-    document.getElementById("expiryStatLabel").innerText = t("expiry");
-    document.getElementById("daysLabel").innerText = t("days");
-    document.getElementById("hoursLabel").innerText = t("hours");
-    document.getElementById("minutesLabel").innerText = t("minutes");
-    document.getElementById("ringUsageLabel").innerText = t("usage");
-    document.getElementById("chartHeadLabel").innerText = t("chartTitle");
-    document.getElementById("configsTitle").innerText = t("configTitle");
-    document.getElementById("appsTitleApp").innerText = t("appsTitle");
-    document.getElementById("copyAllText").innerText = t("copyAll");
-    document.getElementById("copyAllConfigsBtn").setAttribute("title", t("copyAll"));
-
-    // dock labels
-    document.querySelector('[data-label="home"]').innerText = t("navHome");
-    document.querySelector('[data-label="status"]').innerText = t("navStatus");
-    document.querySelector('[data-label="config"]').innerText = t("navConfig");
-    document.querySelector('[data-label="application"]').innerText = t("navApps");
-    const _svcLabel = document.querySelector('[data-label="services"]');
-    if (_svcLabel) _svcLabel.innerText = t("navServices");
-
-    if (emailsList && emailsList.length > 0) {
-      document.getElementById("userEmailBadge").innerHTML = `<i class="fa-regular fa-user"></i> ${escapeHtml(emailsList[0])}`;
-    } else {
-      document.getElementById("userEmailBadge").innerHTML = "";
-    }
-
-    initLiquidBubble();
-    renderStatsAndRing();
-    renderExpiryCountdown();
-    renderConfigs();
-    renderApps();
-    initServicesTab();
-    renderHome();
-    forcePersianDigitsInTextNodes();
-  }
-
-  function forcePersianDigitsInTextNodes(root = document.body) {
-    if (!isPersianUI() || !root) return;
-    const skipTags = new Set(["SCRIPT", "STYLE", "TEXTAREA", "INPUT", "CODE", "PRE"]);
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        const parent = node.parentElement;
-        if (!parent || skipTags.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
-        if (parent.closest && parent.closest(".config-link, #qrModalText, .hero-email, #userEmailBadge")) return NodeFilter.FILTER_REJECT;
-        return /\d/.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
-      }
-    });
-    const nodes = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach(node => { node.nodeValue = toFaDigits(node.nodeValue); });
-  }
-
-  // ======================== VIEW NAVIGATION ========================
-  function switchView(target) {
-    document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === target));
-    document.querySelectorAll(".dock-item").forEach(d => d.classList.toggle("active", d.dataset.target === target));
-    if (target === "status") requestAnimationFrame(drawInteractiveSparkline);
-    if (target === "home") requestAnimationFrame(() => { resizeLiquidCanvas(); });
-    if (target === "services") requestAnimationFrame(renderServices);
-    if (isPersianUI()) forcePersianDigitsInTextNodes();
-  }
-  document.querySelectorAll(".dock-item").forEach(item => {
-    item.addEventListener("click", () => switchView(item.dataset.target));
-  });
-
-  // ======================== macOS DOCK MAGNIFICATION ==================
-  (function initDockMagnify() {
-    const dock = document.getElementById("dock");
-    const items = Array.from(dock.querySelectorAll(".dock-item"));
-    const MAX_SCALE = 0.5;
-    const RANGE = 95;
-    function reset() { items.forEach(it => { it.style.transform = "translateY(0) scale(1)"; }); }
-    dock.addEventListener("pointermove", (e) => {
-      if (window.matchMedia("(pointer: coarse)").matches) return;
-      items.forEach(it => {
-        const rect = it.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const dist = Math.abs(e.clientX - cx);
-        const influence = Math.max(0, 1 - dist / RANGE);
-        const scale = 1 + MAX_SCALE * influence;
-        const lift = -10 * influence;
-        it.style.transform = `translateY(${lift}px) scale(${scale})`;
-      });
-    });
-    dock.addEventListener("pointerleave", reset);
-  })();
-
-  // ======================== EVENT LISTENERS ========================
-  document.getElementById("copyMainBtn").addEventListener("click", () => copyText(subLink, t("copyDone")));
-  document.getElementById("qrMainBtn").addEventListener("click", () => { if(subLink) showQR(subLink, t("qr"), subLink); else showToast(t("copyFail")); });
-  document.getElementById("themeToggleBtn").addEventListener("click", () => { isDark = !isDark; updateUI(); });
-  document.getElementById("langToggleBtn").addEventListener("click", () => { currentLang = currentLang === "fa" ? "en" : "fa"; updateUI(); });
-  document.getElementById("closeModalBtn").addEventListener("click", closeModal);
-  document.getElementById("qrModal").addEventListener("click", (e) => { if(e.target === document.getElementById("qrModal")) closeModal(); });
-  document.addEventListener("keydown", (e) => { if(e.key === "Escape") closeModal(); });
-  document.getElementById("copyAllConfigsBtn").addEventListener("click", () => {
-    if (!configsList || configsList.length === 0) { showToast(t("noConfigToCopy")); return; }
-    copyText(configsList.join("\n"), t("copyDone"));
-  });
-// News events
-document.getElementById('newsBtn').addEventListener('click', showNewsModal);
-document.getElementById('closeNewsBtn').addEventListener('click', closeNewsModal);
-document.getElementById('newsModal').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('newsModal')) closeNewsModal();
-});
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNewsModal(); });
-
-  // FIX: keep the canvas square and the chart accurate on any resize,
-  // rotation, or PWA window change (visualViewport covers iOS PWA quirks)
-  function handleViewportChange() {
-    requestAnimationFrame(() => {
-      // Set --real-vh from visualViewport for reliable iOS PWA full-height
-      if (window.visualViewport) {
-        document.documentElement.style.setProperty('--real-vh', window.visualViewport.height + 'px');
-      }
-      resizeLiquidCanvas();
-      drawInteractiveSparkline();
-    });
-  }
-  window.addEventListener("resize", handleViewportChange);
-  window.addEventListener("orientationchange", handleViewportChange);
-  window.visualViewport?.addEventListener("resize", handleViewportChange);
-
-
-  function updatePwaMode() {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    document.body.classList.toggle('pwa-mode', isStandalone);
-    handleViewportChange();
-  }
-  // Set --real-vh immediately on load (before first paint)
-  (function initRealVh() {
-    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    document.documentElement.style.setProperty('--real-vh', h + 'px');
-  })();
-  window.visualViewport && window.visualViewport.addEventListener('resize', () => {
-    document.documentElement.style.setProperty('--real-vh', window.visualViewport.height + 'px');
-  });
-  updatePwaMode();
-  window.matchMedia('(display-mode: standalone)').addEventListener?.('change', updatePwaMode);
-
-  // ======================== PWA ========================
-  let deferredPrompt = null;
-  const installBtn = document.getElementById("installBtn");
-
-  installBtn.addEventListener("click", async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const choiceResult = await deferredPrompt.userChoice;
-    if (choiceResult.outcome === "accepted") {
-      showToast(t("installAccepted") || "Installed");
-    }
-    deferredPrompt = null;
-    installBtn.style.display = "none";
-  });
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = "inline-grid";
-  });
-// ======================== PWA ICON (SVG Globe VPN) ========================
+// PWA icon (same as used in manifest)
 const PWA_ICON_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
-  <defs>
-    <linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'>
-      <stop offset='0%' stop-color='#40c4a2'/>
-      <stop offset='100%' stop-color='#18b2f0'/>
-    </linearGradient>
-  </defs>
+  <defs><linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'>
+    <stop offset='0%' stop-color='#40c4a2'/><stop offset='100%' stop-color='#18b2f0'/>
+  </linearGradient></defs>
   <circle cx='256' cy='256' r='245' fill='url(#grad)'/>
   <g stroke='#ffffff' fill='none' stroke-width='16' stroke-linecap='round'>
     <circle cx='256' cy='256' r='155'/>
@@ -2941,12 +2129,1062 @@ const PWA_ICON_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='512' height
   <text x='256' y='300' font-family='Arial, sans-serif' font-size='130' font-weight='bold' fill='#1ebae1' text-anchor='middle'>VPN</text>
 </svg>`;
 
+const PWA_ICON_URL = `data:image/svg+xml,${encodeURIComponent(PWA_ICON_SVG)}`;
 
-  (function setupPWA() {
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try {
+    const permission = await Notification.requestPermission();
+    localStorage.setItem('nexus_notif_permission', permission);
+    return permission === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+function sendNotification(newsItem) {
+  if (Notification.permission !== 'granted') return;
+  try {
+    const options = {
+      body: newsItem.body,
+      icon: PWA_ICON_URL,
+      vibrate: [200, 100, 200],
+      data: { url: window.location.href }
+    };
+    const notification = new Notification(newsItem.title, options);
+    notification.onclick = () => {
+      window.focus();
+      window.location.href = notification.data.url;
+      notification.close();
+    };
+  } catch (e) {
+    console.warn('Notification error:', e);
+  }
+}
+
+function checkForNewNews() {
+  const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
+  const now = new Date().toISOString();
+  const newNews = NORMALIZED_NEWS.filter(item => {
+    if (!lastVisit) return true;
+    if (!item.isoDate) return false;
+    return new Date(item.isoDate) > new Date(lastVisit);
+  });
+  newNews.forEach(item => sendNotification(item));
+  localStorage.setItem(LAST_VISIT_KEY, now);
+  updateNewsBadge(newNews.length);
+}
+
+function updateNewsBadge(count) {
+  const dot = document.querySelector('.notif-dot');
+  if (dot) {
+    dot.style.display = count > 0 ? 'block' : 'none';
+  }
+}
+
+// ======================== BACKEND VARIABLES ========================
+const templateVars = {
+  sId: "{{ .sId }}", enabled: "{{ .enabled }}",
+  download: "{{ .download }}", upload: "{{ .upload }}", total: "{{ .total }}", used: "{{ .used }}", remained: "{{ .remained }}",
+  expire: "{{ .expire }}", lastOnline: "{{ .lastOnline }}",
+  downloadByte: "{{ .downloadByte }}", uploadByte: "{{ .uploadByte }}", totalByte: "{{ .totalByte }}",
+  subUrl: "{{ .subUrl }}", subJsonUrl: "{{ .subJsonUrl }}", subClashUrl: "{{ .subClashUrl }}",
+  subTitle: "{{ .subTitle }}", subSupportUrl: "{{ .subSupportUrl }}",
+  links: `{{ range .links }}{{ . }}
+{{ end }}`,
+  emails: `{{ range .emails }}{{ . }}
+{{ end }}`,
+  datepicker: "{{ .datepicker }}", result: "{{ .subUrl }}", jsonUrl: "{{ .subJsonUrl }}", clashUrl: "{{ .subClashUrl }}"
+};
+
+const BYTES_IN_KB = 1024;
+const BYTES_IN_MB = 1024 ** 2;
+const BYTES_IN_GB = 1024 ** 3;
+
+function normalizeDigits(str) {
+  if (typeof str !== 'string') return str;
+  const persian = '۰۱۲۳۴۵۶۷۸۹';
+  const arabic = '٠١٢٣٤٥٦٧٨٩';
+  return str.replace(/[۰-۹]/g, c => persian.indexOf(c)).replace(/[٠-٩]/g, c => arabic.indexOf(c));
+}
+function isPlaceholder(v) { return typeof v === "string" && v.includes("{{") && v.includes("}}"); }
+function normalize(v, fb) { let t = String(v ?? "").trim(); if (!t || isPlaceholder(t)) return fb; return t; }
+function toNumber(v) {
+  let val = normalize(v, "");
+  if (!val) return null;
+  let cleaned = normalizeDigits(val).replace(/[٬,]/g, '').replace(/٫/g, '.');
+  let n = Number(cleaned);
+  return isNaN(n) ? null : n;
+}
+function isUnlimitedText(v) { return /unlimited|infinite|∞|نامحدود/i.test(String(v ?? "")); }
+function parseTrafficToBytes(val) {
+  let text = normalize(val, "");
+  if (!text) return null;
+  if (isUnlimitedText(text)) return 0;
+  let normalizedNum = normalizeDigits(text);
+  let match = normalizedNum.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  let amount = parseFloat(match[0]);
+  let multi = 1;
+  if (/tb|ترابایت/i.test(normalizedNum)) multi = 1024**4;
+  else if (/gb|گیگابایت/i.test(normalizedNum)) multi = BYTES_IN_GB;
+  else if (/mb|مگابایت/i.test(normalizedNum)) multi = 1048576;
+  return amount * multi;
+}
+function parseExpireIso(exp) {
+  let ts = toNumber(exp);
+  if (ts === null || ts === 0) return null;
+  let ms = ts < 1e12 ? ts * 1000 : ts;
+  let d = new Date(ms);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+function parseEmails(raw) {
+  let txt = normalize(raw, "");
+  if (!txt) return [];
+  if (txt.startsWith("[") && txt.endsWith("]")) try { let arr = JSON.parse(txt); return Array.isArray(arr) ? arr : []; } catch(e) {}
+  let items = txt.split(/[,\s]+/).filter(Boolean);
+  return [...new Set(items)];
+}
+function parseLinks(raw) {
+  let txt = normalize(raw, "");
+  return txt ? txt.split(/\r?\n/).filter(l => l.trim()) : [];
+}
+// ======================== WIREGUARD PARSER ========================
+function parseWireGuardLink(link) {
+  try {
+    const url = new URL(link);
+    if (url.protocol !== 'wireguard:') return null;
+
+    const privateKey = decodeURIComponent(url.username || '');
+    const host = url.hostname;
+    const port = url.port || '51820';
+    const searchParams = url.searchParams;
+    const address = searchParams.get('address') || '';
+    const mtu = searchParams.get('mtu') || '1420';
+    const publicKey = searchParams.get('publickey') || '';
+    
+    let name = '';
+    if (url.hash) {
+      const fragment = decodeURIComponent(url.hash.substring(1));
+      const parts = fragment.split('|');
+      name = parts.length > 1 ? parts[1] : parts[0];
+    }
+    if (!name) name = 'WireGuard-Config';
+
+    return { privateKey, host, port, address, mtu, publicKey, name };
+  } catch (e) {
+    return null;
+  }
+}
+
+function generateWireGuardConfig(parsed) {
+  if (!parsed) return '';
+  const { privateKey, host, port, address, mtu, publicKey, name } = parsed;
+  const config = `[Interface]
+PrivateKey = ${privateKey}
+Address = ${address}
+DNS = 1.1.1.1, 1.0.0.1
+MTU = ${mtu}
+
+# ${name}
+[Peer]
+PublicKey = ${publicKey}
+AllowedIPs = 0.0.0.0/0, ::/0
+Endpoint = ${host}:${port}`;
+  return config;
+}
+
+let totalByteNum = toNumber(templateVars.totalByte) ?? parseTrafficToBytes(templateVars.total);
+let uploadByteNum = toNumber(templateVars.uploadByte) ?? parseTrafficToBytes(templateVars.upload);
+let downloadByteNum = toNumber(templateVars.downloadByte) ?? parseTrafficToBytes(templateVars.download);
+if (uploadByteNum === null) uploadByteNum = 0;
+if (downloadByteNum === null) downloadByteNum = 0;
+let usedBytes = (isNaN(uploadByteNum) ? 0 : uploadByteNum) + (isNaN(downloadByteNum) ? 0 : downloadByteNum);
+let isDataUnlimited = (totalByteNum !== null && totalByteNum <= 0) || isUnlimitedText(templateVars.total);
+let totalGB = (totalByteNum !== null && totalByteNum > 0) ? totalByteNum / BYTES_IN_GB : 0;
+let usedGB = usedBytes / BYTES_IN_GB;
+let remainGB = (!isDataUnlimited && totalGB > 0) ? Math.max(0, totalGB - usedGB) : 0;
+let subLink = normalize(templateVars.subUrl, "") || normalize(templateVars.result, "") || "";
+let emailsList = parseEmails(templateVars.emails);
+let configsList = parseLinks(templateVars.links);
+let expireISO = parseExpireIso(templateVars.expire);
+let isEnabled = String(templateVars.enabled).toLowerCase() !== "false";
+
+const locales = {
+  fa: { used: "مصرف شده", usage: "مصرف", total: "کل حجم", remain: "باقی‌مانده", expiry: "انقضا", days: "روز", hours: "ساعت", minutes: "دقیقه", copy: "کپی لینک اشتراک", qr: "نمایش QR", active: "فعال", inactive: "غیرفعال", unlimited: "نامحدود", copyDone: "کپی شد!", copyFail: "خطا", download: "دریافت", upload: "ارسال", configTitle: "کانفیگ‌ها", appsTitle: "برنامه‌های پیشنهادی", noConfig: "کانفیگی موجود نیست", lastOnline: "آخرین آنلاین", timeExpired: "منقضی شده", timeUnlimited: "نامحدود", remainTime: "زمان باقیمانده", subscriptionHub: "پنل اشتراک", volumeUnit: "گیگابایت", copyAll: "کپی همه", noConfigToCopy: "کانفیگی برای کپی وجود ندارد", greeting: "خوش آمدید", premium: "اشتراک ویژه", status: "وضعیت", remainDays: "روز باقی‌مانده", remainVol: "حجم باقی‌مانده", navHome: "خانه", navStatus: "وضعیت", navConfig: "کانفیگ", navApps: "برنامه‌ها", chartTitle: "مصرف ۷ روز اخیر", chartFrom: "از ", chartTo: "تا امروز", navServices: "خدمات", servicesTitle: "خدمات و بسته‌ها" },
+  en: { used: "Used", usage: "Usage", total: "Total", remain: "Remaining", expiry: "Expiry", days: "Days", hours: "Hours", minutes: "Mins", copy: "Copy Subscription", qr: "Show QR", active: "Active", inactive: "Inactive", unlimited: "Unlimited", copyDone: "Copied!", copyFail: "Failed", download: "Download", upload: "Upload", configTitle: "Configs", appsTitle: "Client Apps", noConfig: "No configs available", lastOnline: "Last online", timeExpired: "Expired", timeUnlimited: "No limit", remainTime: "Remaining time", subscriptionHub: "Subscription Hub", volumeUnit: "GB", copyAll: "Copy All", noConfigToCopy: "No configs to copy", greeting: "Welcome back", premium: "Premium Access", status: "Status", remainDays: "Days left", remainVol: "Data left", navHome: "Home", navStatus: "Status", navConfig: "Config", navApps: "Apps", chartTitle: "Usage — last 7 days", chartFrom: "From ", chartTo: "To Today", navServices: "Services", servicesTitle: "Plans & Pricing" }
+};
+let currentLang = localStorage.getItem("nexus_lang") || "fa";
+let isDark = (localStorage.getItem("nexus_theme") || "dark") !== "light";
+let countdownInterval = null;
+
+function t(key) { return locales[currentLang][key] || key; }
+function volumeUnit() { return t("volumeUnit"); }
+function volumeUnitByBytes(bytes) {
+  const n = Number(bytes);
+  const safeBytes = Number.isFinite(n) && n > 0 ? n : 0;
+  if (isPersianUI()) {
+    if (safeBytes < BYTES_IN_KB) return "بایت";
+    if (safeBytes < BYTES_IN_MB) return "کیلوبایت";
+    if (safeBytes < BYTES_IN_GB) return "مگابایت";
+    return "گیگابایت";
+  }
+  if (safeBytes < BYTES_IN_KB) return "B";
+  if (safeBytes < BYTES_IN_MB) return "KB";
+  if (safeBytes < BYTES_IN_GB) return "MB";
+  return "GB";
+}
+function formatBytesParts(bytes, digits = 1) {
+  const n = Number(bytes);
+  const safeBytes = Number.isFinite(n) && n > 0 ? n : 0;
+  let value = safeBytes;
+  if (safeBytes < BYTES_IN_KB) value = safeBytes;
+  else if (safeBytes < BYTES_IN_MB) value = safeBytes / BYTES_IN_KB;
+  else if (safeBytes < BYTES_IN_GB) value = safeBytes / BYTES_IN_MB;
+  else value = safeBytes / BYTES_IN_GB;
+  return { value: formatFixed(value, digits), unit: volumeUnitByBytes(safeBytes) };
+}
+function formatBytes(bytes, digits = 1) {
+  const parts = formatBytesParts(bytes, digits);
+  return `${parts.value} ${parts.unit}`;
+}
+function setVolumeStat(valueId, unitId, bytes, digits = 1) {
+  const valueEl = document.getElementById(valueId);
+  if (!valueEl) return;
+  const parts = formatBytesParts(bytes, digits);
+  valueEl.innerText = parts.value;
+  const unitEl = unitId ? document.getElementById(unitId) : valueEl.parentElement?.querySelector(".stat-unit");
+  if (unitEl) unitEl.innerText = parts.unit;
+}
+function toFaDigits(value) { return String(value ?? "").replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]); }
+function formatDisplay(value) { return isPersianUI() ? toFaDigits(value) : String(value ?? ""); }
+function formatFixed(value, digits = 1) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return formatDisplay("0");
+  const rounded = Number(n.toFixed(digits));
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(digits).replace(/0+$/, "").replace(/\.$/, "");
+  return formatDisplay(text);
+}
+function formatInteger(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return isPersianUI() ? "۰" : "0";
+  return formatDisplay(Math.floor(n));
+}
+function isPersianUI() { return currentLang === "fa" || document.documentElement.getAttribute("dir") === "rtl"; }
+
+function parseSafeTimestamp(raw) {
+  const valOriginal = normalize(raw, "");
+  if (!valOriginal) return null;
+  const val = normalizeDigits(valOriginal).trim();
+  if (!val || /^(0|-1|null|undefined|never|none|نامشخص|هیچ)$/i.test(val)) return null;
+  if (/^\d{2,5}\s*[\/-]\s*\d{1,2}\s*[\/-]\s*\d{1,2}/.test(val)) return null;
+  const match = val.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const n = Number(match[0]);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const now = Date.now();
+  const candidates = [];
+  const add = (ms) => {
+    if (!Number.isFinite(ms) || ms <= 0) return;
+    const d = new Date(ms);
+    if (isNaN(d.getTime())) return;
+    const y = d.getFullYear();
+    if (y >= 2000 && y <= 2100) candidates.push({ date: d, score: Math.abs(ms - now) });
+  };
+  add(n); add(n * 1000); add(n / 10); add(n / 100); add(n / 1000);
+  add(n / 10000); add(n / 100000); add(n / 1000000); add(n / 1000000000);
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => a.score - b.score);
+  return candidates[0].date;
+}
+function pad2(value) { return String(value).padStart(2, "0"); }
+function gregorianToJalali(gy, gm, gd) {
+  const gDm = [0,31,59,90,120,151,181,212,243,273,304,334];
+  let jy = (gy <= 1600) ? 0 : 979;
+  gy -= (gy <= 1600) ? 621 : 1600;
+  const gy2 = (gm > 2) ? (gy + 1) : gy;
+  let days = 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) - 80 + gd + gDm[gm - 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+  const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+  return [jy, jm, jd];
+}
+function formatDateTime(date) {
+  if (!date || isNaN(date.getTime())) return "";
+  if (isPersianUI()) {
+    const [jy, jm, jd] = gregorianToJalali(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    return toFaDigits(`${jy}/${pad2(jm)}/${pad2(jd)}، ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`);
+  }
+  return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}, ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+}
+function formatDateOnly(date) {
+  if (!date || isNaN(date.getTime())) return "";
+  if (isPersianUI()) {
+    const [jy, jm, jd] = gregorianToJalali(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    return toFaDigits(`${jy}/${pad2(jm)}/${pad2(jd)}`);
+  }
+  return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
+}
+function normalizeFormattedDateText(raw) {
+  const valOriginal = normalize(raw, "");
+  if (!valOriginal) return "";
+  const val = normalizeDigits(valOriginal).trim();
+  const m = val.match(/^(\d{2,5})\s*([\/-])\s*(\d{1,2})\s*\2\s*(\d{1,2})(.*)$/);
+  if (!m) return "";
+  const y = Number(m[1]);
+  if ((y >= 1200 && y <= 1700) || (y >= 1900 && y <= 2100)) {
+    return isPersianUI() ? toFaDigits(val) : val;
+  }
+  return "";
+}
+function renderLastOnline() {
+  const box = document.getElementById("lastOnlineInfo");
+  const parsed = parseSafeTimestamp(templateVars.lastOnline);
+  const formattedRaw = normalizeFormattedDateText(templateVars.lastOnline);
+  const finalText = parsed ? formatDateTime(parsed) : formattedRaw;
+  box.innerHTML = finalText ? `<i class="fa-regular fa-eye"></i> ${t("lastOnline")}: ${finalText}` : "";
+}
+
+// DOM helpers
+function showToast(msg) { let toast = document.getElementById("toastMessage"); toast.innerText = msg; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 1700); }
+function showQR(data, title, label) {
+  if (!data) { showToast(t("copyFail")); return; }
+  document.getElementById("modalQrTitle").innerText = title;
+  document.getElementById("qrModalImg").src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(data)}`;
+  document.getElementById("qrModalText").innerText = label || data;
+  document.getElementById("qrModal").classList.add("show");
+}
+function closeModal() { document.getElementById("qrModal").classList.remove("show"); }
+async function copyText(text, successMsg) {
+  if (!text) { showToast(t("copyFail")); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(successMsg);
+  } catch(e) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      showToast(successMsg);
+    } catch(e2) {
+      showToast(t("copyFail"));
+    }
+  }
+}
+function escapeHtml(str) { return String(str).replace(/[&<>"']/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; if(m==='"') return '&quot;'; if(m==="'") return '&#39;'; return m;}); }
+
+// ======================== NEWS RENDERING ========================
+function fetchNews() {
+  const container = document.getElementById('newsContent');
+  if (NORMALIZED_NEWS && NORMALIZED_NEWS.length > 0) {
+    container.innerHTML = NORMALIZED_NEWS.map(item => 
+      `<div style="padding:0.6rem 0; border-bottom:1px solid var(--border);">
+        <strong style="color:var(--text-primary);">${escapeHtml(item.title || '')}</strong>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.2rem;">${escapeHtml(item.body || '')}</p>
+        <small style="color:var(--text-muted);">${escapeHtml(item.date || '')} ${item.time ? ' - ' + escapeHtml(item.time) : ''}</small>
+      </div>`
+    ).join('');
+  } else {
+    container.innerHTML = '<p style="color:var(--text-secondary); text-align:center;">No news available.</p>';
+  }
+}
+
+function showNewsModal() {
+  document.getElementById('newsModal').classList.add('show');
+  fetchNews();
+  updateNewsBadge(0);
+}
+
+function closeNewsModal() {
+  document.getElementById('newsModal').classList.remove('show');
+}
+
+// ======================== LIQUID BUBBLE ========================
+let liquidAnimationId = null;
+let targetLiquidPercent = 0;
+let wavePhase = 0;
+let liquidCtx = null;
+let liquidCanvas = null;
+
+function getUsageColor(percent, unlimited = false) {
+  if (unlimited) return "#4f9bff";
+  const p = Math.max(0, Math.min(100, percent));
+  let r, g, b;
+  if (p <= 40) {
+    const k = p / 40;
+    r = Math.round(134 - (134 - 34) * k);
+    g = Math.round(239 - (239 - 197) * k);
+    b = Math.round(172 - (172 - 94) * k);
+  } else if (p <= 60) {
+    const k = (p - 40) / 20;
+    r = Math.round(34 + (249 - 34) * k);
+    g = Math.round(197 - (197 - 115) * k);
+    b = Math.round(94 - (94 - 22) * k);
+  } else {
+    const k = (p - 60) / 40;
+    r = Math.round(249 + (239 - 249) * k);
+    g = Math.round(115 - (115 - 68) * k);
+    b = Math.round(22 - (22 - 68) * k);
+  }
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function resizeLiquidCanvas() {
+  if (!liquidCanvas) return;
+  const wrap = liquidCanvas.parentElement;
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  const cssSize = Math.max(1, Math.round(Math.min(rect.width, rect.height)));
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelSize = Math.round(cssSize * dpr);
+  if (liquidCanvas.width !== pixelSize || liquidCanvas.height !== pixelSize) {
+    liquidCanvas.width = pixelSize;
+    liquidCanvas.height = pixelSize;
+  }
+}
+
+function drawLiquidBubble() {
+  if (!liquidCtx || !liquidCanvas) return;
+  const size = liquidCanvas.width;
+  const center = size / 2;
+  const radius = size / 2 - Math.max(6, size * 0.065);
+  const unlimitedMode = isDataUnlimited || totalGB <= 0;
+  const percentToShow = unlimitedMode ? 100 : targetLiquidPercent;
+  const fillColor = getUsageColor(percentToShow, unlimitedMode);
+  const fillHeight = (percentToShow / 100) * (radius * 2);
+  const startY = size - fillHeight - (size / 2 - radius);
+
+  liquidCtx.clearRect(0, 0, size, size);
+  liquidCtx.beginPath();
+  liquidCtx.arc(center, center, radius, 0, Math.PI * 2);
+  liquidCtx.fillStyle = "rgba(255,255,255,0.06)";
+  liquidCtx.fill();
+
+  liquidCtx.save();
+  liquidCtx.beginPath();
+  liquidCtx.arc(center, center, radius, 0, Math.PI * 2);
+  liquidCtx.clip();
+
+  liquidCtx.fillStyle = fillColor;
+  liquidCtx.beginPath();
+  liquidCtx.moveTo(0, size);
+  const waveAmp = size * 0.027;
+  const waveLen = size * 0.118;
+  for (let x = 0; x <= size; x++) {
+    const y = startY + Math.sin((x / waveLen) + wavePhase) * waveAmp;
+    liquidCtx.lineTo(x, y);
+  }
+  liquidCtx.lineTo(size, size);
+  liquidCtx.closePath();
+  liquidCtx.fill();
+  liquidCtx.restore();
+
+  liquidCtx.beginPath();
+  liquidCtx.arc(center, center, radius, 0, Math.PI * 2);
+  liquidCtx.strokeStyle = fillColor;
+  liquidCtx.globalAlpha = 0.55;
+  liquidCtx.lineWidth = Math.max(2, size * 0.014);
+  liquidCtx.stroke();
+  liquidCtx.globalAlpha = 1;
+
+  wavePhase += 0.08;
+  liquidAnimationId = requestAnimationFrame(drawLiquidBubble);
+}
+
+function initLiquidBubble() {
+  liquidCanvas = document.getElementById("liquidBubbleCanvas");
+  if (!liquidCanvas) return;
+  liquidCtx = liquidCanvas.getContext("2d");
+  resizeLiquidCanvas();
+  if (!liquidAnimationId) drawLiquidBubble();
+  if ("ResizeObserver" in window && !liquidCanvas._ro) {
+    const ro = new ResizeObserver(() => resizeLiquidCanvas());
+    ro.observe(liquidCanvas.parentElement);
+    liquidCanvas._ro = ro;
+  }
+}
+
+function setLiquidPercent(percent, unlimitedFlag) {
+  targetLiquidPercent = unlimitedFlag ? 100 : Math.min(100, Math.max(0, percent));
+  const ringText = document.getElementById("ringPercentText");
+  const ringLabel = document.getElementById("ringUsageLabel");
+  if (unlimitedFlag) {
+    ringText.innerHTML = "∞";
+  } else {
+    ringText.innerHTML = formatInteger(targetLiquidPercent) + "%";
+  }
+  ringText.style.color = "#ffffff";
+  ringLabel.style.color = "#ffffff";
+}
+
+// ======================== 7-DAY SPARKLINE CHART ========================
+let activeChartDot = null;
+
+function hideChartTooltip() {
+  const tooltip = document.getElementById("chartTooltip");
+  const guideLine = document.getElementById("chartGuideLine");
+  if (tooltip) tooltip.style.display = "none";
+  if (guideLine) guideLine.style.display = "none";
+  if (activeChartDot) { activeChartDot.classList.remove("is-active"); activeChartDot = null; }
+}
+
+function drawInteractiveSparkline() {
+  const container = document.getElementById("interactiveChartContainer");
+  if (!container) return;
+  const totalUsedGB = usedBytes / BYTES_IN_GB;
+  const dailyWeights = [0.08, 0.12, 0.15, 0.11, 0.18, 0.22, 0.14];
+  const dailyUsageGB = dailyWeights.map(w => totalUsedGB * w);
+
+  const daysData = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    daysData.push({ date: d, usage: dailyUsageGB[6 - i] });
+  }
+
+  document.getElementById("chartStartDateLabel").innerText = t("chartFrom") + formatDateOnly(daysData[0].date);
+  document.getElementById("chartEndDateLabel").innerText = t("chartTo") + formatDateOnly(daysData[6].date);
+
+  const maxVal = Math.max(...dailyUsageGB, 0.5);
+  const heightMultiplier = 16 / maxVal;
+
+  const points = daysData.map((d, index) => {
+    const x = 4 + index * (92 / 6);
+    const y = 22 - (d.usage * heightMultiplier);
+    return { x, y, data: d };
+  });
+
+  let lineD = `M ${points[0].x} ${points[0].y}`;
+  let areaD = `M ${points[0].x} 25 L ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    lineD += ` L ${points[i].x} ${points[i].y}`;
+    areaD += ` L ${points[i].x} ${points[i].y}`;
+  }
+  areaD += ` L ${points[points.length - 1].x} 25 Z`;
+
+  document.getElementById("chartLinePath").setAttribute("d", lineD);
+  document.getElementById("chartAreaPath").setAttribute("d", areaD);
+
+  const dotsLayer = document.getElementById("chartDotsLayer");
+  dotsLayer.innerHTML = "";
+  const guideLine = document.getElementById("chartGuideLine");
+  const tooltip = document.getElementById("chartTooltip");
+  const wrap = document.getElementById("chartWrap");
+
+  hideChartTooltip();
+
+  points.forEach((pt) => {
+    const leftPct = pt.x;
+    const topPct = (pt.y / 25) * 100;
+
+    const dot = document.createElement("div");
+    dot.className = "chart-dot";
+    dot.style.left = leftPct + "%";
+    dot.style.top = topPct + "%";
+
+    const hit = document.createElement("button");
+    hit.type = "button";
+    hit.className = "chart-hit";
+    hit.style.left = leftPct + "%";
+    hit.setAttribute("aria-label", formatDateOnly(pt.data.date));
+
+    const showTooltip = () => {
+      hideChartTooltip();
+      activeChartDot = dot;
+      dot.classList.add("is-active");
+
+      guideLine.style.display = "block";
+      guideLine.style.left = leftPct + "%";
+
+      const rect = wrap.getBoundingClientRect();
+      const rawX = (leftPct / 100) * rect.width;
+      const rawY = (topPct / 100) * rect.height;
+
+      tooltip.style.display = "flex";
+      const dateStr = formatDateOnly(pt.data.date);
+      const usageStr = formatFixed(pt.data.usage, 2) + " " + (isPersianUI() ? "گیگابایت" : "GB");
+      tooltip.innerHTML = `<strong>${dateStr}</strong><span>${usageStr}</span>`;
+
+      const tw = tooltip.offsetWidth || 120;
+      const clampedX = Math.min(Math.max(rawX, tw / 2 + 4), rect.width - tw / 2 - 4);
+      const th = tooltip.offsetHeight || 44;
+      const above = rawY - th - 12;
+      tooltip.style.left = clampedX + "px";
+      tooltip.style.top = (above > 0 ? above : rawY + 14) + "px";
+      tooltip.style.transform = "translateX(-50%)";
+    };
+
+    hit.addEventListener("mouseenter", showTooltip);
+    hit.addEventListener("mouseleave", hideChartTooltip);
+    hit.addEventListener("focus", showTooltip);
+    hit.addEventListener("blur", hideChartTooltip);
+    hit.addEventListener("click", (e) => { e.stopPropagation(); showTooltip(); });
+    hit.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); showTooltip(); }, { passive: false });
+
+    dotsLayer.appendChild(hit);
+    dotsLayer.appendChild(dot);
+  });
+}
+document.addEventListener("touchstart", (e) => {
+  if (!e.target.closest || !e.target.closest("#chartWrap")) hideChartTooltip();
+}, { passive: true });
+
+// ======================== RENDER FUNCTIONS ========================
+function computeIsActive(unlimitedFlag) {
+  return isEnabled && (!expireISO || new Date(expireISO) > new Date()) && (!(!unlimitedFlag && usedGB >= totalGB && totalGB > 0));
+}
+
+function renderStatsAndRing() {
+  let unlimitedFlag = isDataUnlimited || totalGB <= 0;
+  let usedPercent = (!unlimitedFlag && totalGB > 0) ? Math.min(100, Math.max(0, (usedGB / totalGB) * 100)) : 0;
+  let remainBytes = (!unlimitedFlag && totalByteNum !== null && totalByteNum > 0) ? Math.max(0, totalByteNum - usedBytes) : 0;
+
+  setVolumeStat("usedStatValue", "usedUnit", usedBytes, 1);
+  if (unlimitedFlag) {
+    document.getElementById("totalStatValue").innerHTML = "∞";
+    document.getElementById("remainStatValue").innerHTML = "∞";
+  } else {
+    setVolumeStat("totalStatValue", null, totalByteNum || 0, 1);
+    setVolumeStat("remainStatValue", null, remainBytes, 1);
+  }
+  setLiquidPercent(usedPercent, unlimitedFlag);
+
+  document.getElementById("downloadVal").innerHTML = formatBytes(downloadByteNum || 0, 1);
+  document.getElementById("uploadVal").innerHTML = formatBytes(uploadByteNum || 0, 1);
+  document.getElementById("downloadLabel").innerText = t("download");
+  document.getElementById("uploadLabel").innerText = t("upload");
+
+  let isActive = computeIsActive(unlimitedFlag);
+  let statusSpan = document.getElementById("statusChip");
+  statusSpan.innerHTML = `<i class="fa-solid ${isActive ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> ${isActive ? t("active") : t("inactive")}`;
+  statusSpan.classList.toggle("is-inactive", !isActive);
+
+  if (expireISO && new Date(expireISO) > new Date())
+    document.getElementById("expiryDatePreview").innerText = formatDateOnly(new Date(expireISO));
+  else if (!expireISO)
+    document.getElementById("expiryDatePreview").innerText = t("timeUnlimited");
+  else
+    document.getElementById("expiryDatePreview").innerText = t("timeExpired");
+
+  drawInteractiveSparkline();
+}
+
+function renderExpiryCountdown() {
+  if (countdownInterval) clearInterval(countdownInterval);
+  if (!expireISO) {
+    document.getElementById("daysLeft").innerText = "∞";
+    document.getElementById("hoursLeft").innerText = "∞";
+    document.getElementById("minutesLeft").innerText = "∞";
+    document.getElementById("expiryTextLabel").innerText = isPersianUI() ? "اشتراک شما محدودیت زمانی ندارد" : "Your subscription has no time limit";
+    renderLastOnline();
+    return;
+  }
+  let end = new Date(expireISO).getTime();
+  const tick = () => {
+    let now = Date.now();
+    let diff = Math.max(0, end - now);
+    let days = Math.floor(diff / 86400000);
+    let hours = Math.floor((diff % 86400000) / 3600000);
+    let mins = Math.floor((diff % 3600000) / 60000);
+    document.getElementById("daysLeft").innerText = formatDisplay(days);
+    document.getElementById("hoursLeft").innerText = formatDisplay(hours);
+    document.getElementById("minutesLeft").innerText = formatDisplay(mins);
+    if (diff <= 0) clearInterval(countdownInterval);
+  };
+  tick();
+  countdownInterval = setInterval(tick, 1000);
+  document.getElementById("expiryTextLabel").innerText = t("remainTime");
+  renderLastOnline();
+}
+
+function renderHome() {
+  let unlimitedFlag = isDataUnlimited || totalGB <= 0;
+  let isActive = computeIsActive(unlimitedFlag);
+  document.getElementById("heroTitle").innerText = getPanelTitle();
+  let name = (emailsList && emailsList.length > 0) ? emailsList[0] : "";
+  document.getElementById("heroGreeting").innerText = name ? `${t("greeting")}،` : t("greeting");
+
+  let sv = document.getElementById("homeStatusValue");
+  sv.innerText = isActive ? t("active") : t("inactive");
+  sv.style.color = isActive ? "var(--status-active-text)" : "var(--status-inactive-text)";
+
+  let daysEl = document.getElementById("homeDaysValue");
+  if (!expireISO) { daysEl.innerText = "∞"; }
+  else {
+    let diff = Math.max(0, new Date(expireISO).getTime() - Date.now());
+    daysEl.innerText = formatDisplay(Math.floor(diff / 86400000));
+  }
+
+  let volEl = document.getElementById("homeVolumeValue");
+  if (unlimitedFlag) { volEl.innerText = "∞"; }
+  else {
+    let remainBytes = (totalByteNum !== null && totalByteNum > 0) ? Math.max(0, totalByteNum - usedBytes) : 0;
+    volEl.innerHTML = formatBytes(remainBytes, 1);
+  }
+}
+
+function renderConfigs() {
+  let container = document.getElementById("configListContainer");
+  if (!configsList.length) {
+    container.innerHTML = `<div style="text-align:center;padding:2rem;">${t("noConfig")}</div>`;
+    document.getElementById("configCountBadge").innerText = formatDisplay(0);
+    return;
+  }
+  document.getElementById("configCountBadge").innerText = formatDisplay(configsList.length);
+  container.innerHTML = "";
+
+  configsList.forEach((cfg, idx) => {
+    const isWireGuard = cfg.startsWith('wireguard://');
+    const isTelegram = cfg.startsWith('tg://');
+    let name = "";
+
+    if (isTelegram) {
+      name = "Telegram";
+    } else if (cfg.includes("#")) {
+      name = decodeURIComponent(cfg.split("#").pop().replace(/\+/g, " "));
+    } else {
+      name = `${t("configTitle")} ${formatDisplay(idx+1)}`;
+    }
+
+    const div = document.createElement("div");
+    div.className = "config-item";
+
+    if (isWireGuard) {
+      const parsed = parseWireGuardLink(cfg);
+      if (!parsed) {
+        // fallback
+        div.innerHTML = buildConfigItemFallback(cfg, name);
+        container.appendChild(div);
+        return;
+      }
+      const configText = generateWireGuardConfig(parsed);
+      const fileName = `WireGuard-${parsed.name.replace(/\s+/g, '-')}.conf`;
+
+      div.innerHTML = `
+        <div class="config-meta">
+          <span class="config-name">${escapeHtml(name)}</span>
+          <div class="config-actions">
+            <button type="button" class="mini-action copyConfigBtn" aria-label="Copy"><i class="fa-regular fa-copy"></i></button>
+            <button type="button" class="mini-action qrConfigBtn" data-name="${escapeHtml(name)}" aria-label="QR"><i class="fa-solid fa-qrcode"></i></button>
+            <button type="button" class="mini-action downloadConfigBtn" aria-label="Download"><i class="fa-solid fa-download"></i></button>
+          </div>
+        </div>
+        <pre class="config-link" style="white-space:pre-wrap;word-break:break-all;font-family:monospace;font-size:0.75rem;background:var(--surface-muted);padding:0.5rem;border-radius:0.4rem;margin-top:0.25rem;">${escapeHtml(configText)}</pre>
+      `;
+
+      const copyBtn = div.querySelector(".copyConfigBtn");
+      const qrBtn = div.querySelector(".qrConfigBtn");
+      const downloadBtn = div.querySelector(".downloadConfigBtn");
+
+      copyBtn.dataset.raw = cfg;
+      copyBtn.dataset.configText = configText;
+      copyBtn.addEventListener("click", (e) => {
+        copyText(e.currentTarget.dataset.configText, t("copyDone"));
+      });
+
+      qrBtn.dataset.raw = cfg;
+      qrBtn.addEventListener("click", (e) => {
+        showQR(e.currentTarget.dataset.raw, `${name} (${t("configTitle")})`, cfg);
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        const blob = new Blob([configText], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      });
+
+      container.appendChild(div);
+
+    } else if (isTelegram) {
+      // لینک‌های پروکسی تلگرام
+      div.innerHTML = `
+        <div class="config-meta">
+          <span class="config-name">${escapeHtml(name)}</span>
+          <div class="config-actions">
+            <button type="button" class="mini-action copyConfigBtn" aria-label="Copy"><i class="fa-regular fa-copy"></i></button>
+            <button type="button" class="mini-action qrConfigBtn" data-name="${escapeHtml(name)}" aria-label="QR"><i class="fa-solid fa-qrcode"></i></button>
+          </div>
+        </div>
+        <div class="config-link">${escapeHtml(cfg.length > 80 ? cfg.substring(0, 80)+"..." : cfg)}</div>
+      `;
+      const copyBtn = div.querySelector(".copyConfigBtn");
+      const qrBtn = div.querySelector(".qrConfigBtn");
+      copyBtn.dataset.raw = cfg;
+      qrBtn.dataset.raw = cfg;
+      copyBtn.addEventListener("click", (e) => { copyText(e.currentTarget.dataset.raw, t("copyDone")); });
+      qrBtn.addEventListener("click", (e) => { showQR(e.currentTarget.dataset.raw, `${e.currentTarget.dataset.name} (${t("configTitle")})`, e.currentTarget.dataset.raw); });
+      container.appendChild(div);
+
+    } else {
+      // لینک‌های دیگر (vmess, vless, ...)
+      div.innerHTML = `
+        <div class="config-meta">
+          <span class="config-name">${escapeHtml(name)}</span>
+          <div class="config-actions">
+            <button type="button" class="mini-action copyConfigBtn" aria-label="Copy"><i class="fa-regular fa-copy"></i></button>
+            <button type="button" class="mini-action qrConfigBtn" data-name="${escapeHtml(name)}" aria-label="QR"><i class="fa-solid fa-qrcode"></i></button>
+          </div>
+        </div>
+        <div class="config-link">${escapeHtml(cfg.length > 80 ? cfg.substring(0, 80)+"..." : cfg)}</div>
+      `;
+      const copyBtn = div.querySelector(".copyConfigBtn");
+      const qrBtn = div.querySelector(".qrConfigBtn");
+      copyBtn.dataset.raw = cfg;
+      qrBtn.dataset.raw = cfg;
+      copyBtn.addEventListener("click", (e) => { copyText(e.currentTarget.dataset.raw, t("copyDone")); });
+      qrBtn.addEventListener("click", (e) => { showQR(e.currentTarget.dataset.raw, `${e.currentTarget.dataset.name} (${t("configTitle")})`, e.currentTarget.dataset.raw); });
+      container.appendChild(div);
+    }
+  });
+}
+
+// تابع کمکی برای fallback (در صورت خطا در parse)
+function buildConfigItemFallback(cfg, name) {
+  return `
+    <div class="config-meta">
+      <span class="config-name">${escapeHtml(name)}</span>
+      <div class="config-actions">
+        <button type="button" class="mini-action copyConfigBtn" aria-label="Copy"><i class="fa-regular fa-copy"></i></button>
+        <button type="button" class="mini-action qrConfigBtn" data-name="${escapeHtml(name)}" aria-label="QR"><i class="fa-solid fa-qrcode"></i></button>
+      </div>
+    </div>
+    <div class="config-link">${escapeHtml(cfg.length > 80 ? cfg.substring(0, 80)+"..." : cfg)}</div>
+  `;
+}
+
+function renderApps() {
+  let apps = [
+    { name: "Android", icon: "fa-brands fa-android", list: [{ n: "v2rayNG", url: "https://github.com/2dust/v2rayNG/releases" }, { n: "Happ", url: "https://play.google.com/store/apps/details?id=com.happproxy&pcampaignid=web_share" }] },
+    { name: "iOS", icon: "fa-brands fa-apple", list: [{ n: "Streisand", url: "https://apps.apple.com/us/app/streisand/id6450534064" }, { n: "Shadowrocket", url: "https://apps.apple.com/search?term=shadowrocket" }] },
+    { name: "Windows", icon: "fa-brands fa-windows", list: [{ n: "v2rayN", url: "https://github.com/2dust/v2rayN/releases" }, { n: "Nekoray", url: "https://github.com/MatsuriDayo/nekoray" }] },
+    { name: "macOS", icon: "fa-brands fa-apple", list: [{ n: "V2rayU", url: "https://github.com/yanue/V2rayU" }, { n: "Happ", url: "https://happ.app/" }] }
+  ];
+  let grid = document.getElementById("appsGridContainer");
+  grid.innerHTML = "";
+  apps.forEach(os => {
+    let card = document.createElement("div"); card.className = "app-card";
+    card.innerHTML = `<button type="button" class="app-toggle" aria-expanded="false"><span class="app-title"><i class="${os.icon}"></i><span>${os.name}</span></span><i class="fa-solid fa-chevron-down chev"></i></button><div class="app-links"></div>`;
+    let linksDiv = card.querySelector(".app-links");
+    os.list.forEach(app => { let a = document.createElement("a"); a.href = app.url; a.target="_blank"; a.rel="noopener"; a.className="app-link"; a.innerHTML = `<span>${app.n}</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>`; linksDiv.appendChild(a); });
+    const toggle = card.querySelector(".app-toggle");
+    toggle.addEventListener("click", () => {
+      const openCard = grid.querySelector(".app-card.open");
+      if (openCard && openCard !== card) {
+        openCard.classList.remove("open");
+        openCard.querySelector(".app-toggle")?.setAttribute("aria-expanded", "false");
+      }
+      const isOpen = card.classList.toggle("open");
+      toggle.setAttribute("aria-expanded", String(isOpen));
+    });
+    grid.appendChild(card);
+  });
+}
+
+function getPanelTitle() { return normalize(templateVars.subTitle, "") || t("subscriptionHub"); }
+
+function updateUI() {
+  document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+  document.documentElement.lang = currentLang === "fa" ? "fa" : "en";
+  document.documentElement.dir = currentLang === "fa" ? "rtl" : "ltr";
+  localStorage.setItem("nexus_theme", isDark ? "dark" : "light");
+  localStorage.setItem("nexus_lang", currentLang);
+  document.documentElement.style.backgroundColor = isDark ? "#161a22" : "#f6f8fb";
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", isDark ? "#161a22" : "#f6f8fb");
+  document.getElementById("themeIcon").className = isDark ? "fa-solid fa-sun" : "fa-solid fa-moon";
+
+  document.title = getPanelTitle();
+  document.getElementById("panelTitle").innerText = getPanelTitle();
+
+  const brandMark = document.querySelector(".brand-mark");
+  if (brandMark) {
+    brandMark.style.background = `url("data:image/svg+xml,${encodeURIComponent(PWA_ICON_SVG)}") center/cover no-repeat`;
+    brandMark.innerHTML = "";
+  }
+
+  document.getElementById("premiumTagText").innerText = t("premium");
+  document.getElementById("homeStatusLabel").innerText = t("status");
+  document.getElementById("homeRemainLabel").innerText = t("remainDays");
+  document.getElementById("homeVolumeLabel").innerText = t("remainVol");
+  document.getElementById("copyMainText").innerText = t("copy");
+  document.getElementById("qrMainText").innerText = t("qr");
+
+  document.getElementById("usedStatLabel").innerText = t("used");
+  document.querySelectorAll(".stat-unit").forEach(el => { el.innerText = volumeUnit(); });
+  document.getElementById("totalStatLabel").innerText = t("total");
+  document.getElementById("remainStatLabel").innerText = t("remain");
+  document.getElementById("expiryStatLabel").innerText = t("expiry");
+  document.getElementById("daysLabel").innerText = t("days");
+  document.getElementById("hoursLabel").innerText = t("hours");
+  document.getElementById("minutesLabel").innerText = t("minutes");
+  document.getElementById("ringUsageLabel").innerText = t("usage");
+  document.getElementById("chartHeadLabel").innerText = t("chartTitle");
+  document.getElementById("configsTitle").innerText = t("configTitle");
+  document.getElementById("appsTitleApp").innerText = t("appsTitle");
+  document.getElementById("copyAllText").innerText = t("copyAll");
+  document.getElementById("copyAllConfigsBtn").setAttribute("title", t("copyAll"));
+
+  document.querySelector('[data-label="home"]').innerText = t("navHome");
+  document.querySelector('[data-label="status"]').innerText = t("navStatus");
+  document.querySelector('[data-label="config"]').innerText = t("navConfig");
+  document.querySelector('[data-label="application"]').innerText = t("navApps");
+  const _svcLabel = document.querySelector('[data-label="services"]');
+  if (_svcLabel) _svcLabel.innerText = t("navServices");
+
+  if (emailsList && emailsList.length > 0) {
+    document.getElementById("userEmailBadge").innerHTML = `<i class="fa-regular fa-user"></i> ${escapeHtml(emailsList[0])}`;
+  } else {
+    document.getElementById("userEmailBadge").innerHTML = "";
+  }
+
+  initLiquidBubble();
+  renderStatsAndRing();
+  renderExpiryCountdown();
+  renderConfigs();
+  renderApps();
+  initServicesTab();
+  renderHome();
+  forcePersianDigitsInTextNodes();
+}
+
+function forcePersianDigitsInTextNodes(root = document.body) {
+  if (!isPersianUI() || !root) return;
+  const skipTags = new Set(["SCRIPT", "STYLE", "TEXTAREA", "INPUT", "CODE", "PRE"]);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent || skipTags.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
+      if (parent.closest && parent.closest(".config-link, #qrModalText, .hero-email, #userEmailBadge")) return NodeFilter.FILTER_REJECT;
+      return /\d/.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => { node.nodeValue = toFaDigits(node.nodeValue); });
+}
+
+// ======================== VIEW NAVIGATION ========================
+function switchView(target) {
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === target));
+  document.querySelectorAll(".dock-item").forEach(d => d.classList.toggle("active", d.dataset.target === target));
+  if (target === "status") requestAnimationFrame(drawInteractiveSparkline);
+  if (target === "home") requestAnimationFrame(() => { resizeLiquidCanvas(); });
+  if (target === "services") requestAnimationFrame(renderServices);
+  if (isPersianUI()) forcePersianDigitsInTextNodes();
+}
+document.querySelectorAll(".dock-item").forEach(item => {
+  item.addEventListener("click", () => switchView(item.dataset.target));
+});
+
+// ======================== DOCK MAGNIFICATION ========================
+(function initDockMagnify() {
+  const dock = document.getElementById("dock");
+  const items = Array.from(dock.querySelectorAll(".dock-item"));
+  const MAX_SCALE = 0.5;
+  const RANGE = 95;
+  function reset() { items.forEach(it => { it.style.transform = "translateY(0) scale(1)"; }); }
+  dock.addEventListener("pointermove", (e) => {
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    items.forEach(it => {
+      const rect = it.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const dist = Math.abs(e.clientX - cx);
+      const influence = Math.max(0, 1 - dist / RANGE);
+      const scale = 1 + MAX_SCALE * influence;
+      const lift = -10 * influence;
+      it.style.transform = `translateY(${lift}px) scale(${scale})`;
+    });
+  });
+  dock.addEventListener("pointerleave", reset);
+})();
+
+// ======================== EVENT LISTENERS ========================
+document.getElementById("copyMainBtn").addEventListener("click", () => copyText(subLink, t("copyDone")));
+document.getElementById("qrMainBtn").addEventListener("click", () => { if(subLink) showQR(subLink, t("qr"), subLink); else showToast(t("copyFail")); });
+document.getElementById("themeToggleBtn").addEventListener("click", () => { isDark = !isDark; updateUI(); });
+document.getElementById("langToggleBtn").addEventListener("click", () => { currentLang = currentLang === "fa" ? "en" : "fa"; updateUI(); });
+document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+document.getElementById("qrModal").addEventListener("click", (e) => { if(e.target === document.getElementById("qrModal")) closeModal(); });
+document.addEventListener("keydown", (e) => { if(e.key === "Escape") closeModal(); });
+document.getElementById("copyAllConfigsBtn").addEventListener("click", () => {
+  if (!configsList || configsList.length === 0) { showToast(t("noConfigToCopy")); return; }
+  copyText(configsList.join("\n"), t("copyDone"));
+});
+document.getElementById('newsBtn').addEventListener('click', showNewsModal);
+document.getElementById('closeNewsBtn').addEventListener('click', closeNewsModal);
+document.getElementById('newsModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('newsModal')) closeNewsModal();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNewsModal(); });
+
+// ======================== VIEWPORT & PWA ========================
+function handleViewportChange() {
+  requestAnimationFrame(() => {
+    if (window.visualViewport) {
+      document.documentElement.style.setProperty('--real-vh', window.visualViewport.height + 'px');
+    }
+    resizeLiquidCanvas();
+    drawInteractiveSparkline();
+  });
+}
+window.addEventListener("resize", handleViewportChange);
+window.addEventListener("orientationchange", handleViewportChange);
+window.visualViewport?.addEventListener("resize", handleViewportChange);
+
+function updatePwaMode() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  document.body.classList.toggle('pwa-mode', isStandalone);
+  handleViewportChange();
+}
+(function initRealVh() {
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--real-vh', h + 'px');
+})();
+window.visualViewport && window.visualViewport.addEventListener('resize', () => {
+  document.documentElement.style.setProperty('--real-vh', window.visualViewport.height + 'px');
+});
+updatePwaMode();
+window.matchMedia('(display-mode: standalone)').addEventListener?.('change', updatePwaMode);
+
+// ======================== PWA INSTALL ========================
+let deferredPrompt = null;
+const installBtn = document.getElementById("installBtn");
+installBtn.addEventListener("click", async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const choiceResult = await deferredPrompt.userChoice;
+  if (choiceResult.outcome === "accepted") {
+    showToast(t("installAccepted") || "Installed");
+  }
+  deferredPrompt = null;
+  installBtn.style.display = "none";
+});
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = "inline-grid";
+});
+
+// ======================== PWA MANIFEST SETUP ========================
+(function setupPWA() {
   try {
     const iconUrl = `data:image/svg+xml,${encodeURIComponent(PWA_ICON_SVG)}`;
     const iconType = "image/svg+xml";
-
     const manifest = {
       name: getPanelTitle(),
       short_name: getPanelTitle(),
@@ -2961,7 +3199,6 @@ const PWA_ICON_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='512' height
         { src: iconUrl, sizes: "512x512", type: iconType, purpose: "any maskable" }
       ]
     };
-
     const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
     const link = document.createElement("link");
     link.rel = "manifest";
@@ -2987,202 +3224,198 @@ const PWA_ICON_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='512' height
   } catch (e) { /* best-effort */ }
 })();
 
-  // ======================== SERVICES TAB ========================
-  function formatPrice(price) {
-    const str = Math.round(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return isPersianUI() ? toFaDigits(str).replace(/,/g, "٬") : str;
-  }
+// ======================== SERVICES TAB ========================
+function formatPrice(price) {
+  const str = Math.round(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return isPersianUI() ? toFaDigits(str).replace(/,/g, "٬") : str;
+}
 
-  function renderServices() {
-    const grid = document.getElementById("servicesGrid");
-    if (!grid) return;
-    grid.innerHTML = "";
-    SERVICES_PACKAGES.forEach(pkg => {
-      const card = document.createElement("div");
-      card.className = "pkg-card";
-      const priceStr = formatPrice(pkg.price);
-      const daysStr = formatDisplay(pkg.days);
-      const periodLabel = isPersianUI() ? `${daysStr} روز` : `${daysStr} days`;
-      const currencyLabel = isPersianUI() ? "تومان" : "Toman";
-      card.innerHTML = `
-        ${pkg.popular ? `<div class="pkg-popular">${isPersianUI() ? "پرفروش" : "Popular"}</div>` : ""}
-        <div class="pkg-badge"><i class="fa-solid fa-box"></i> ${escapeHtml(pkg.label)}</div>
-        <div class="pkg-volume">${escapeHtml(pkg.volume)}</div>
-        <div class="pkg-days">${periodLabel}</div>
-        <div class="pkg-divider"></div>
-        <div class="pkg-price">${priceStr}</div>
-        <div class="pkg-currency">${currencyLabel}</div>
-      `;
-      grid.appendChild(card);
-    });
-    const note = document.getElementById("servicesNote");
-    if (note) note.innerText = isPersianUI()
-      ? "برای خرید و اطلاعات بیشتر با پشتیبانی تماس بگیرید."
-      : "Contact support to purchase a plan.";
-    const title = document.getElementById("servicesTitleEl");
-    if (title) title.innerText = t("servicesTitle");
-  }
+function renderServices() {
+  const grid = document.getElementById("servicesGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  SERVICES_PACKAGES.forEach(pkg => {
+    const card = document.createElement("div");
+    card.className = "pkg-card";
+    const priceStr = formatPrice(pkg.price);
+    const daysStr = formatDisplay(pkg.days);
+    const periodLabel = isPersianUI() ? `${daysStr} روز` : `${daysStr} days`;
+    const currencyLabel = isPersianUI() ? "تومان" : "Toman";
+    card.innerHTML = `
+      ${pkg.popular ? `<div class="pkg-popular">${isPersianUI() ? "پرفروش" : "Popular"}</div>` : ""}
+      <div class="pkg-badge"><i class="fa-solid fa-box"></i> ${escapeHtml(pkg.label)}</div>
+      <div class="pkg-volume">${escapeHtml(pkg.volume)}</div>
+      <div class="pkg-days">${periodLabel}</div>
+      <div class="pkg-divider"></div>
+      <div class="pkg-price">${priceStr}</div>
+      <div class="pkg-currency">${currencyLabel}</div>
+    `;
+    grid.appendChild(card);
+  });
+  const note = document.getElementById("servicesNote");
+  if (note) note.innerText = isPersianUI()
+    ? "برای خرید و اطلاعات بیشتر با پشتیبانی تماس بگیرید."
+    : "Contact support to purchase a plan.";
+  const title = document.getElementById("servicesTitleEl");
+  if (title) title.innerText = t("servicesTitle");
+}
 
-  function initServicesTab() {
-    const dockItem = document.getElementById("servicesDockItem");
-    const view = document.getElementById("servicesView");
-    if (!ENABLE_SERVICES_TAB) {
-      if (dockItem) dockItem.style.display = "none";
-      if (view) { view.style.display = "none"; view.classList.remove("active"); }
-      return;
-    }
-    if (dockItem) dockItem.style.display = "";
-    if (view) view.style.display = "";
-    renderServices();
+function initServicesTab() {
+  const dockItem = document.getElementById("servicesDockItem");
+  const view = document.getElementById("servicesView");
+  if (!ENABLE_SERVICES_TAB) {
+    if (dockItem) dockItem.style.display = "none";
+    if (view) { view.style.display = "none"; view.classList.remove("active"); }
+    return;
   }
+  if (dockItem) dockItem.style.display = "";
+  if (view) view.style.display = "";
+  renderServices();
+}
 
-  // ======================== INSTALL POPUP ========================
-  function _buildInstallStepsIOS(isSafari) {
-    if (isSafari) {
-      const fa = isPersianUI();
-      return `
-        <div class="install-step">
-          <div class="install-step-num">1</div>
-          <div class="install-step-text">${fa ? 'روی دکمه <strong>اشتراک‌گذاری</strong> در پایین سافاری بزنید' : 'Tap the <strong>Share</strong> button in Safari&#39;s toolbar'}</div>
-          <i class="fa-solid fa-arrow-up-from-bracket install-step-ico"></i>
-        </div>
-        <div class="install-step">
-          <div class="install-step-num">2</div>
-          <div class="install-step-text">${fa ? 'گزینه «<strong>Add to Home Screen</strong>» را انتخاب کنید' : 'Select <strong>Add to Home Screen</strong>'}</div>
-          <i class="fa-regular fa-square-plus install-step-ico"></i>
-        </div>
-        <div class="install-step">
-          <div class="install-step-num">3</div>
-          <div class="install-step-text">${fa ? 'روی «<strong>Add</strong>» بزنید تا اپ اضافه شود' : 'Tap <strong>Add</strong> to confirm'}</div>
-          <i class="fa-solid fa-check install-step-ico"></i>
-        </div>`;
-    }
+// ======================== INSTALL POPUP ========================
+function _buildInstallStepsIOS(isSafari) {
+  if (isSafari) {
     const fa = isPersianUI();
     return `
       <div class="install-step">
-        <div class="install-step-num"><i class="fa-brands fa-safari" style="font-size:.85rem"></i></div>
-        <div class="install-step-text">${fa ? 'این صفحه را در <strong>Safari</strong> باز کنید تا بتوانید اپ را نصب کنید' : 'Open this page in <strong>Safari</strong> to install the app'}</div>
-        <i class="fa-solid fa-chevron-left install-step-ico"></i>
-      </div>`;
-  }
-
-  function _buildInstallStepsAndroid(hasPrompt) {
-    const fa = isPersianUI();
-    let steps = `
-      <div class="install-step">
         <div class="install-step-num">1</div>
-        <div class="install-step-text">${fa ? 'روی دکمه <strong>نصب</strong> بزنید تا اپ روی گوشی نصب شود' : 'Tap <strong>Install</strong> to add the app to your phone'}</div>
-        <i class="fa-solid fa-download install-step-ico"></i>
+        <div class="install-step-text">${fa ? 'روی دکمه <strong>اشتراک‌گذاری</strong> در پایین سافاری بزنید' : 'Tap the <strong>Share</strong> button in Safari\'s toolbar'}</div>
+        <i class="fa-solid fa-arrow-up-from-bracket install-step-ico"></i>
       </div>
       <div class="install-step">
         <div class="install-step-num">2</div>
-        <div class="install-step-text">${fa ? 'سریع‌تر و بدون مرورگر دسترسی داشته باشید' : 'Access it faster without opening a browser'}</div>
-        <i class="fa-solid fa-bolt install-step-ico"></i>
-      </div>`;
-    if (!hasPrompt) {
-      steps += `
+        <div class="install-step-text">${fa ? 'گزینه «<strong>Add to Home Screen</strong>» را انتخاب کنید' : 'Select <strong>Add to Home Screen</strong>'}</div>
+        <i class="fa-regular fa-square-plus install-step-ico"></i>
+      </div>
       <div class="install-step">
         <div class="install-step-num">3</div>
-        <div class="install-step-text">${fa ? 'منوی مرورگر ⋮ → «<strong>Add to Home screen</strong>» را انتخاب کنید' : 'Browser menu ⋮ → <strong>Add to Home screen</strong>'}</div>
-        <i class="fa-solid fa-ellipsis-vertical install-step-ico"></i>
+        <div class="install-step-text">${fa ? 'روی «<strong>Add</strong>» بزنید تا اپ اضافه شود' : 'Tap <strong>Add</strong> to confirm'}</div>
+        <i class="fa-solid fa-check install-step-ico"></i>
       </div>`;
+  }
+  const fa = isPersianUI();
+  return `
+    <div class="install-step">
+      <div class="install-step-num"><i class="fa-brands fa-safari" style="font-size:.85rem"></i></div>
+      <div class="install-step-text">${fa ? 'این صفحه را در <strong>Safari</strong> باز کنید تا بتوانید اپ را نصب کنید' : 'Open this page in <strong>Safari</strong> to install the app'}</div>
+      <i class="fa-solid fa-chevron-left install-step-ico"></i>
+    </div>`;
+}
+
+function _buildInstallStepsAndroid(hasPrompt) {
+  const fa = isPersianUI();
+  let steps = `
+    <div class="install-step">
+      <div class="install-step-num">1</div>
+      <div class="install-step-text">${fa ? 'روی دکمه <strong>نصب</strong> بزنید تا اپ روی گوشی نصب شود' : 'Tap <strong>Install</strong> to add the app to your phone'}</div>
+      <i class="fa-solid fa-download install-step-ico"></i>
+    </div>
+    <div class="install-step">
+      <div class="install-step-num">2</div>
+      <div class="install-step-text">${fa ? 'سریع‌تر و بدون مرورگر دسترسی داشته باشید' : 'Access it faster without opening a browser'}</div>
+      <i class="fa-solid fa-bolt install-step-ico"></i>
+    </div>`;
+  if (!hasPrompt) {
+    steps += `
+    <div class="install-step">
+      <div class="install-step-num">3</div>
+      <div class="install-step-text">${fa ? 'منوی مرورگر ⋮ → «<strong>Add to Home screen</strong>» را انتخاب کنید' : 'Browser menu ⋮ → <strong>Add to Home screen</strong>'}</div>
+      <i class="fa-solid fa-ellipsis-vertical install-step-ico"></i>
+    </div>`;
+  }
+  return steps;
+}
+
+function closeInstallPopup(remember) {
+  const overlay = document.getElementById("installOverlay");
+  if (overlay) overlay.classList.remove("visible");
+  if (remember) localStorage.setItem("nexus_pwa_dismissed", "1");
+}
+
+function initInstallPopup() {
+  if (!ENABLE_INSTALL_POPUP) return;
+  const overlay = document.getElementById("installOverlay");
+  if (!overlay) return;
+  if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) return;
+  if (localStorage.getItem("nexus_pwa_dismissed")) return;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) && !window.MSStream;
+  const isAndroid = /Android/i.test(ua);
+  if (!isIOS && !isAndroid) return;
+
+  const appName = getPanelTitle();
+  const nameEl = document.getElementById("installAppName");
+  const subEl = document.getElementById("installAppSub");
+  const stepsEl = document.getElementById("installSteps");
+  const actionBtn = document.getElementById("installActionBtn");
+  if (nameEl) nameEl.innerText = appName;
+
+  if (isIOS) {
+    const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+    if (subEl) subEl.innerText = isPersianUI() ? "به صفحه اصلی اضافه کنید" : "Add to Home Screen";
+    if (stepsEl) stepsEl.innerHTML = _buildInstallStepsIOS(isSafari);
+    if (actionBtn) actionBtn.style.display = "none";
+  } else {
+    if (subEl) subEl.innerText = isPersianUI() ? "به عنوان اپلیکیشن نصب کنید" : "Install as an app";
+    const hasPrompt = !!deferredPrompt;
+    if (stepsEl) stepsEl.innerHTML = _buildInstallStepsAndroid(hasPrompt);
+    if (hasPrompt && actionBtn) {
+      actionBtn.style.display = "";
+      actionBtn.onclick = async () => {
+        closeInstallPopup(false);
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") showToast(isPersianUI() ? "اپ نصب شد!" : "App installed!");
+        deferredPrompt = null;
+      };
     }
-    return steps;
   }
 
-  function closeInstallPopup(remember) {
-    const overlay = document.getElementById("installOverlay");
-    if (overlay) overlay.classList.remove("visible");
-    if (remember) localStorage.setItem("nexus_pwa_dismissed", "1");
-  }
-
-  function initInstallPopup() {
-    if (!ENABLE_INSTALL_POPUP) return;
-    const overlay = document.getElementById("installOverlay");
-    if (!overlay) return;
-    // Already installed as standalone PWA
-    if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) return;
-    // Already dismissed by user
-    if (localStorage.getItem("nexus_pwa_dismissed")) return;
-    const ua = navigator.userAgent || "";
-    const isIOS = /iPhone|iPad|iPod/i.test(ua) && !window.MSStream;
-    const isAndroid = /Android/i.test(ua);
-    if (!isIOS && !isAndroid) return;
-
-    // Set app name/info
-    const appName = getPanelTitle();
-    const nameEl = document.getElementById("installAppName");
-    const subEl = document.getElementById("installAppSub");
-    const stepsEl = document.getElementById("installSteps");
-    const actionBtn = document.getElementById("installActionBtn");
-    if (nameEl) nameEl.innerText = appName;
-
-    if (isIOS) {
-      const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
-      if (subEl) subEl.innerText = isPersianUI() ? "به صفحه اصلی اضافه کنید" : "Add to Home Screen";
-      if (stepsEl) stepsEl.innerHTML = _buildInstallStepsIOS(isSafari);
-      if (actionBtn) actionBtn.style.display = "none";
-    } else {
-      if (subEl) subEl.innerText = isPersianUI() ? "به عنوان اپلیکیشن نصب کنید" : "Install as an app";
-      const hasPrompt = !!deferredPrompt;
-      if (stepsEl) stepsEl.innerHTML = _buildInstallStepsAndroid(hasPrompt);
-      if (hasPrompt && actionBtn) {
-        actionBtn.style.display = "";
-        actionBtn.onclick = async () => {
-          closeInstallPopup(false);
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          if (outcome === "accepted") showToast(isPersianUI() ? "اپ نصب شد!" : "App installed!");
-          deferredPrompt = null;
-        };
-      }
+  const showOverlay = () => {
+    overlay.classList.add("visible");
+    if (isAndroid && !deferredPrompt) {
+      const btn = document.getElementById("installActionBtn");
+      if (btn && deferredPrompt) btn.style.display = "";
     }
+  };
+  setTimeout(showOverlay, 1800);
 
-    // Late bind: if beforeinstallprompt fires before overlay shown, update button
-    const showOverlay = () => {
-      overlay.classList.add("visible");
-      if (isAndroid && !deferredPrompt) {
-        // re-check in case prompt arrived late (up to 1.8s)
-        const btn = document.getElementById("installActionBtn");
-        if (btn && deferredPrompt) btn.style.display = "";
-      }
-    };
+  document.getElementById("installLaterBtn").addEventListener("click", () => closeInstallPopup(true));
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) closeInstallPopup(true); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInstallPopup(true); });
+}
 
-    setTimeout(showOverlay, 1800);
-
-    // Close actions
-    document.getElementById("installLaterBtn").addEventListener("click", () => closeInstallPopup(true));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeInstallPopup(true); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInstallPopup(true); });
-  }
-
-// ======================== DISABLE ZOOM IN PWA ========================
+// ======================== DISABLE ZOOM ========================
 (function disableZoom() {
-  // جلوگیری از زوم با دو انگشت (iOS Safari)
   document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
   document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
   document.addEventListener('gestureend', function(e) { e.preventDefault(); });
-
-  // جلوگیری از زوم با دوبار ضربه (double-tap) در iOS
   let lastTouchEnd = 0;
   document.addEventListener('touchend', function(e) {
     const now = Date.now();
-    if (now - lastTouchEnd <= 300) {
-      e.preventDefault();
-    }
+    if (now - lastTouchEnd <= 300) e.preventDefault();
     lastTouchEnd = now;
   }, { passive: false });
-
-  // همچنین می‌توانید روی بدنه یا کانتینر اصلی `touch-action: none` اعمال کنید
-  // اما این کار ممکن است اسکرول را مختل کند، پس فقط اگر مطمئن هستید:
-  // document.body.style.touchAction = 'none';
-  // بهتر است فقط روی المنت‌های غیرقابل اسکرول اعمال شود.
+  document.addEventListener('touchmove', function(e) {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '0')) e.preventDefault();
+  });
 })();
 
-  // ======================== INIT ========================
-  updateUI();
-  initInstallPopup();
-  setInterval(() => { if (isPersianUI()) forcePersianDigitsInTextNodes(); }, 1000);
+// ======================== INIT ========================
+updateUI();
+initInstallPopup();
+
+requestNotificationPermission().then(permitted => {
+  if (permitted) {
+    checkForNewNews();
+  }
+});
+
+setInterval(() => { if (isPersianUI()) forcePersianDigitsInTextNodes(); }, 1000);
 </script>
 </body>
 </html>
