@@ -1,11 +1,7 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-*, *::before, *::after {
+                <style>*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -16,11 +12,10 @@
   color-scheme: dark;
   --font-sans: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Vazirmatn', system-ui, sans-serif;
-  --bg: #161a22;
-  --bg-soft: #161a22;
-  --surface: rgba(28, 33, 43, 0.72);
-  --surface-strong: rgba(33, 39, 51, 0.94);
-  --surface-muted: rgba(96, 165, 250, 0.06);
+  --bg-soft: #1b262c;
+  --surface: #1b262c;
+  --surface-strong: rgba(33,39,51,0.06);
+  --surface-muted: rgba(96,165,250,0.07);
   --border: rgba(22,111,222,0.1);
   --border-strong: rgba(96, 165, 250, 0.34);
   --text-primary: #eef2f8;
@@ -44,9 +39,7 @@
   --space-4: 1.2rem;
   --space-5: 1.55rem;
   --ring-focus: rgba(79, 155, 255, 0.747);
-  FIX: single source of truth for the usage-ring size. Both width AND height come from this variable, so the ring can never be stretched into an ellipse by flexbox or by missing aspect-ratio support. min() also caps it by the viewport height so it fits short PWA windows.;
   --ring-size: clamp(88px, min(40vw, 22svh, 22vh), 196px);
-  FIX: explicit chart height (no aspect-ratio dependency);
   --chart-h: clamp(96px, 22vw, 150px);
   --status-active-bg: rgba(78, 163, 106, 0.15);
   --status-active-border: rgba(78, 163, 106, 0.55);
@@ -54,6 +47,7 @@
   --status-inactive-bg: rgba(217, 84, 74, 0.15);
   --status-inactive-border: rgba(230, 89, 78, 0.849);
   --status-inactive-text: #f0938a;
+  --bg: #161a22;
 }
 
 html[data-theme="light"] {
@@ -97,11 +91,12 @@ body {
   font-family: var(--font-sans);
   color: var(--text-primary);
   line-height: 1.6;
-  background: radial-gradient(circle at 16% 10%, rgba(79, 155, 255, 0.14), transparent 34rem), radial-gradient(circle at 86% 90%, rgba(37, 99, 235, 0.12), transparent 36rem), linear-gradient(160deg, var(--bg), var(--bg-soft));
   background-attachment: fixed;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  background: radial-gradient(circle at 16% 10%, rgba(49,124,211,0.17), transparent 34rem), radial-gradient(circle at 86% 90%, rgba(15,122,220,0.12), transparent 36rem), linear-gradient(160deg, var(--bg), var(--bg-soft));
+  background-attachment: fixed;
 }
 
 body.pwa-mode .app-shell {
@@ -112,8 +107,6 @@ body.pwa-mode .app-shell {
   padding: max(0.8rem, env(safe-area-inset-top)) max(0.8rem, env(safe-area-inset-right)) max(0.9rem, env(safe-area-inset-bottom)) max(0.8rem, env(safe-area-inset-left));
   gap: 0.85rem;
 }
-
-/* pwa-mode stays on 100dvh — more reliable on iOS standalone */
 
 body.pwa-mode .app-header {
   border-radius: var(--radius-lg);
@@ -187,7 +180,6 @@ button:focus-visible, a:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(20px);
@@ -210,8 +202,6 @@ button:focus-visible, a:focus-visible {
   border-radius: var(--radius-sm);
   font-size: 1.25rem;
   color: #fff;
-  /*background: linear-gradient(140deg, var(--accent-bright), var(--accent-strong));*/
-  /*box-shadow: 0 10px 26px rgba(37, 99, 235, 0.35), inset 0 1px 0 rgba(255,255,255,0.35);*/
 }
 
 .brand-text {
@@ -241,6 +231,7 @@ button:focus-visible, a:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  overflow: visible !important;
 }
 
 .icon-btn {
@@ -298,8 +289,6 @@ button:focus-visible, a:focus-visible {
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
-
-/* FIX: children of a scrollable view must never be squeezed */
 
 .view > * {
   flex-shrink: 0;
@@ -422,11 +411,7 @@ button:focus-visible, a:focus-visible {
   display: none;
 }
 
-/* ==================== USAGE RING (liquid) ====================
-       FIX: perfectly round on every screen / PWA:
-       - width AND height are the SAME css variable (no aspect-ratio needed)
-       - flex: 0 0 auto so flexbox can never squash it
-       - canvas bitmap is resized in JS to the real rendered size * DPR */
+/* ==================== USAGE RING (liquid) ==================== */
 
 .usage-ring-liquid {
   position: relative;
@@ -666,15 +651,11 @@ button:focus-visible, a:focus-visible {
   direction: rtl;
 }
 
-/* ==================== 7-DAY CHART ====================
-       FIX: no aspect-ratio (breaks in some webviews) — a fixed
-       responsive height instead. The SVG stretches with
-       preserveAspectRatio="none" + non-scaling strokes, and the data
-       points are HTML dots so they always stay perfectly round. */
+/* ==================== 7-DAY CHART ==================== */
 
 .chart-panel {
   padding: clamp(0.9rem, 2.2vw, 1.25rem);
-  background: var(--surface);
+  background: var(--surface-muted);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(20px);
@@ -1065,7 +1046,7 @@ button:focus-visible, a:focus-visible {
   color: var(--accent);
 }
 
-/* ==================== DOCK (macOS style) ==================== */
+/* ==================== DOCK (macOS style + sliding pill) ==================== */
 
 .dock-wrap {
   display: flex;
@@ -1073,6 +1054,7 @@ button:focus-visible, a:focus-visible {
 }
 
 .dock {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 1.2rem;
@@ -1080,7 +1062,7 @@ button:focus-visible, a:focus-visible {
   border-radius: var(--radius-lg);
   background: var(--surface-strong);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
@@ -1096,27 +1078,25 @@ button:focus-visible, a:focus-visible {
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 1.35rem;
-  background: var(--surface-muted);
-  border: rgba(221,224,230,0.36);
-  transform-origin: bottom center;
-  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
-  will-change: transform;
+  background: transparent;
+  border: none;
+  padding: 0;
+  z-index: 1;
+  transition: color 220ms ease, transform 140ms ease;
 }
 
-.dock-item:hover {
-  color: var(--accent);
+.dock-item:active {
+  transform: scale(0.92);
 }
 
-.dock-item.active {
-  color: #fff;
-  background: linear-gradient(140deg, var(--accent-bright), var(--accent));
-  border-color: transparent;
-  box-shadow: 0 8px 20px rgba(79,155,255,0.54);
+.dock-item i {
+  display: inline-block;
+  transition: transform 260ms ease, filter 220ms ease;
 }
 
 .dock-item .dock-label {
   position: absolute;
-  bottom: calc(100% + 0.55rem);
+  top: 50px;
   left: 50%;
   transform: translateX(-50%) translateY(6px);
   padding: 0.25rem 0.65rem;
@@ -1138,20 +1118,55 @@ button:focus-visible, a:focus-visible {
 }
 
 .dock-item .dot {
-  position: absolute;
-  bottom: -0.4rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1.2rem;
-  height: 0.22rem;
-  border-radius: 999px;
-  background: var(--accent);
-  opacity: 0;
-  transition: opacity 160ms ease, width 160ms ease;
+  display: none !important;
 }
 
-.dock-item.active .dot {
-  opacity: 1;
+/* --- Sliding pill --- */
+
+.dock-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--radius-sm);
+  background: radial-gradient(circle at 50% 35%, var(--accent-soft), transparent 72%);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 10px 24px rgba(79, 155, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform, width, height;
+}
+
+.dock.dock-ready .dock-pill {
+  transition: transform 460ms cubic-bezier(0.34, 1.4, 0.5, 1), width 400ms cubic-bezier(0.34, 1.4, 0.5, 1), height 400ms cubic-bezier(0.34, 1.4, 0.5, 1), opacity 220ms ease;
+}
+
+.dock-item.active {
+  color: var(--accent);
+}
+
+.dock-item.active i {
+  transition: transform 520ms cubic-bezier(0.34, 1.6, 0.5, 1), filter 260ms ease;
+  transform: translateY(-1px) scale(1.15);
+  filter: drop-shadow(0 4px 12px rgba(79, 155, 255, 0.5));
+}
+
+@media (hover: hover) {
+  .dock-item:hover {
+    color: var(--accent-bright);
+  }
+}
+
+@media (hover: hover) {
+  .dock-item:not(.active):hover i {
+    transform: translateY(-2px) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock.dock-ready .dock-pill, .dock-item, .dock-item i {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ==================== MODAL / TOAST ==================== */
@@ -1164,7 +1179,7 @@ button:focus-visible, a:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(0,0,0,0.74);
+  background: rgba(0,0,0,0.3);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -1180,7 +1195,7 @@ button:focus-visible, a:focus-visible {
   padding: var(--space-5);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
-  background: var(--surface-strong);
+  background: var(--surface);
   box-shadow: var(--shadow-lg);
 }
 
@@ -1249,8 +1264,6 @@ button:focus-visible, a:focus-visible {
   }
 }
 
-/* Phones (iPhone 13 ≈ 390px): bigger, comfortable dock */
-
 @media (max-width: 560px) {
   .app-shell {
     padding: max(0.75rem, env(safe-area-inset-top)) max(0.8rem, env(safe-area-inset-right)) max(0.8rem, env(safe-area-inset-bottom)) max(0.8rem, env(safe-area-inset-left));
@@ -1304,8 +1317,6 @@ button:focus-visible, a:focus-visible {
     font-size: 1.05rem;
   }
 }
-
-/* FIX: status cards & chart on narrow phones */
 
 @media (max-width: 420px) {
   .stat-cards {
@@ -1368,8 +1379,6 @@ button:focus-visible, a:focus-visible {
   }
 }
 
-/* Short screens: hide decorative elements, shrink ring further */
-
 @media (max-height: 580px) {
   .premium-tag {
     display: none;
@@ -1395,8 +1404,6 @@ button:focus-visible, a:focus-visible {
   }
 }
 
-/* Landscape micro windows */
-
 @media (max-height: 420px) {
   .hero-stats {
     display: none;
@@ -1415,8 +1422,6 @@ button:focus-visible, a:focus-visible {
     animation-duration: 0.01ms !important;
   }
 }
-
-/* iPhone SE covered globally by svh-based sizing above */
 
 /* ==================== INSTALL POPUP (bottom sheet) ==================== */
 
@@ -1716,25 +1721,133 @@ html[dir="ltr"] .pkg-popular {
     opacity: 1;
     transform: scale(1);
   }
-  .header-actions {
-    overflow: visible !important;
-  }
 }
 
-
 </style>
-</head>
-<body>
-<!DOCTYPE html>
-<html data-bs-theme="auto" lang="en" dir="ltr" data-theme="dark" data-build="v41-slate-blue-responsive">
+            <link rel="manifest" href="blob:https://liveweave.com/0c92aa55-09c8-44a1-b4f7-bfb8512950e8"><link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'512'%20height%3D'512'%20viewBox%3D'0%200%20512%20512'%3E%0A%20%20%3Cdefs%3E%3ClinearGradient%20id%3D'grad'%20x1%3D'0%25'%20y1%3D'0%25'%20x2%3D'100%25'%20y2%3D'100%25'%3E%0A%20%20%20%20%3Cstop%20offset%3D'0%25'%20stop-color%3D'%2340c4a2'%2F%3E%3Cstop%20offset%3D'100%25'%20stop-color%3D'%2318b2f0'%2F%3E%0A%20%20%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%20%3Ccircle%20cx%3D'256'%20cy%3D'256'%20r%3D'245'%20fill%3D'url(%23grad)'%2F%3E%0A%20%20%3Cg%20stroke%3D'%23ffffff'%20fill%3D'none'%20stroke-width%3D'16'%20stroke-linecap%3D'round'%3E%0A%20%20%20%20%3Ccircle%20cx%3D'256'%20cy%3D'256'%20r%3D'155'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M%20101%20256%20Q%20178%20160%20256%20101'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M%20411%20256%20Q%20334%20160%20256%20101'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M%20101%20256%20Q%20178%20352%20256%20411'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M%20411%20256%20Q%20334%20352%20256%20411'%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Crect%20x%3D'110'%20y%3D'190'%20width%3D'292'%20height%3D'132'%20rx%3D'10'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ctext%20x%3D'256'%20y%3D'300'%20font-family%3D'Arial%2C%20sans-serif'%20font-size%3D'130'%20font-weight%3D'bold'%20fill%3D'%231ebae1'%20text-anchor%3D'middle'%3EVPN%3C%2Ftext%3E%0A%3C%2Fsvg%3E"></head>
+            <body>
+                <script>(function installLiveweaveConsoleBridge() {
+        if (window.__liveweaveConsoleBridge) return;
+        window.__liveweaveConsoleBridge = true;
 
-<head>
+        function format(value) {
+            if (typeof value === 'string') return value;
+            if (typeof value === 'undefined') return 'undefined';
+            if (typeof value === 'function') return value.toString();
+            if (value instanceof Error) return value.name + ': ' + value.message;
+            if (value instanceof Element) return value.outerHTML;
+            try {
+                var seen = [];
+                return JSON.stringify(value, function(key, item) {
+                    if (typeof item === 'object' && item !== null) {
+                        if (seen.indexOf(item) !== -1) return '[Circular]';
+                        seen.push(item);
+                    }
+                    return item;
+                }, 2);
+            } catch (err) {
+                return String(value);
+            }
+        }
+
+        function send(type, values, id) {
+            parent.postMessage({
+                source: 'liveweave-preview-console',
+                type: type,
+                id: id || '',
+                values: (values || []).map(format)
+            }, '*');
+        }
+
+        ['log', 'info', 'warn', 'error', 'debug'].forEach(function(level) {
+            var original = console[level];
+            console[level] = function() {
+                var args = Array.prototype.slice.call(arguments);
+                send(level === 'log' || level === 'debug' ? 'log' : level, args);
+                if (original) original.apply(console, args);
+            };
+        });
+
+        window.addEventListener('error', function(event) {
+            send('error', [event.message + (event.lineno ? ' (line ' + event.lineno + ')' : '')]);
+        });
+        window.addEventListener('unhandledrejection', function(event) {
+            send('error', ['Unhandled promise rejection:', event.reason]);
+        });
+        window.addEventListener('message', function(event) {
+            var message = event.data || {};
+            if (event.source !== parent || message.source !== 'liveweave-parent-console' || message.type !== 'evaluate') return;
+            try {
+                var result = (0, eval)(message.code);
+                Promise.resolve(result).then(function(value) {
+                    send('result', [value], message.id);
+                }, function(error) {
+                    send('error', [error], message.id);
+                });
+            } catch (error) {
+                send('error', [error], message.id);
+            }
+        });
+        send('ready', []);
+    })();</script>
+                <script>(function installPreviewLinkGuard() {
+        var noticeTimer;
+
+        function showNotice(message) {
+            var notice = document.getElementById('lw-preview-link-notice');
+            if (!notice) {
+                notice = document.createElement('div');
+                notice.id = 'lw-preview-link-notice';
+                notice.setAttribute('role', 'status');
+                notice.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483647;max-width:calc(100% - 24px);padding:10px 14px;border-radius:9px;background:#17212d;color:#fff;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25);pointer-events:none;';
+                document.body.appendChild(notice);
+            }
+            notice.textContent = message;
+            notice.hidden = false;
+            clearTimeout(noticeTimer);
+            noticeTimer = setTimeout(function() { notice.hidden = true; }, 3500);
+        }
+
+        document.addEventListener('click', function(event) {
+            var link = event.target.closest && event.target.closest('a[href]');
+            if (!link || event.defaultPrevented) return;
+
+            var href = (link.getAttribute('href') || '').trim();
+            if (href.charAt(0) === '#') {
+                event.preventDefault();
+                var fragment = href.slice(1);
+                if (!fragment) {
+                    window.scrollTo(0, 0);
+                    return;
+                }
+                try { fragment = decodeURIComponent(fragment); } catch (error) {}
+                var target = document.getElementById(fragment) || document.getElementsByName(fragment)[0];
+                if (target) target.scrollIntoView();
+                return;
+            }
+
+            if (/^(https?:)?\/\//i.test(href)) {
+                event.preventDefault();
+                window.open(href, '_blank', 'noopener,noreferrer');
+                return;
+            }
+
+            if (/^(mailto:|tel:)/i.test(href)) return;
+
+            event.preventDefault();
+            showNotice('This page cannot be opened in the preview.');
+        }, true);
+    })();</script>
+                
+
+
+
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-    <title>{{ .subTitle }}</title>
+    <title>پنل اشتراک</title>
     <meta property="og:type" content="website">
     <meta property="og:image" content="assets/img/Logo_dark.webp">
-    <meta name="theme-color" content="#0e1116">
+    <meta name="theme-color" content="#161a22">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1853,9 +1966,9 @@ html[dir="ltr"] .pkg-popular {
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="assets/css/styles.css">
-</head>
 
-<body>
+
+
     <div class="app-shell">
         <header class="app-header">
             <div class="brand">
@@ -1868,29 +1981,29 @@ html[dir="ltr"] .pkg-popular {
                     <div class="brand-sub"><span>Premium Access</span></div>
                 </div>
             </div>
-            <div class="header-actions"><button id="installBtn" class="icon-btn" type="button" aria-label="نصب برنامه" title="نصب برنامه" style="display:none;"><i class="fa-solid fa-download"></i></button><button id="newsBtn" class="icon-btn" type="button" aria-label="اخبار" style="position: relative;"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button><button id="themeToggleBtn" class="icon-btn" type="button" aria-label="تغییر حالت روشن و تاریک"><i id="themeIcon" class="fa-solid fa-moon"></i></button><button id="langToggleBtn" class="icon-btn" type="button" aria-label="تغییر زبان"><i class="fa-solid fa-globe"></i></button></div>
+            <div class="header-actions"><button id="installBtn" class="icon-btn" type="button" aria-label="نصب برنامه" title="نصب برنامه" style="display:none;"><i class="fa-solid fa-download"></i></button><button id="newsBtn" class="icon-btn" type="button" aria-label="اخبار" style="position: relative;"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button><button id="themeToggleBtn" class="icon-btn" type="button" aria-label="تغییر حالت روشن و تاریک"><i id="themeIcon" class="fa-solid fa-sun"></i></button><button id="langToggleBtn" class="icon-btn" type="button" aria-label="تغییر زبان"><i class="fa-solid fa-globe"></i></button></div>
         </header>
         <main class="stage">
-            <section class="view active scroll-hidden" data-view="home">
+            <section class="view scroll-hidden active" data-view="home">
                 <div class="hero"><span class="premium-tag"><i class="fa-solid fa-crown"></i><span id="premiumTagText">اشتراک ویژه</span></span>
-                    <div id="heroGreeting" class="hero-greeting"><span>خوش آمدید</span></div>
-                    <div id="heroTitle" class="hero-title"><span>پنل اشتراک</span></div>
+                    <div id="heroGreeting" class="hero-greeting">خوش آمدید</div>
+                    <div id="heroTitle" class="hero-title">پنل اشتراک</div>
                     <div id="userEmailBadge" class="hero-email"></div>
-                    <div class="usage-ring-liquid"><canvas id="liquidBubbleCanvas" width="186" height="186"></canvas>
-                        <div class="ring-percent"><span id="ringPercentText">0%</span><span id="ringUsageLabel" style="font-size:0.72rem;">مصرف</span></div>
+                    <div class="usage-ring-liquid"><canvas id="liquidBubbleCanvas" width="72" height="72"></canvas>
+                        <div class="ring-percent"><span id="ringPercentText" style="color: rgb(255, 255, 255);">∞</span><span id="ringUsageLabel" style="font-size: 0.72rem; color: rgb(255, 255, 255);">مصرف</span></div>
                     </div>
                     <div class="hero-stats">
                         <div class="hero-stat">
-                            <div id="homeStatusLabel" class="k"><span>وضعیت</span></div>
-                            <div id="homeStatusValue" class="v" style="font-size:1rem;"><span>—</span></div>
+                            <div id="homeStatusLabel" class="k">وضعیت</div>
+                            <div id="homeStatusValue" class="v" style="font-size: 1rem; color: var(--status-active-text);">فعال</div>
                         </div>
                         <div class="hero-stat">
-                            <div id="homeRemainLabel" class="k"><span>روز باقی‌مانده</span></div>
-                            <div id="homeDaysValue" class="v"><span>—</span></div>
+                            <div id="homeRemainLabel" class="k">روز باقی‌مانده</div>
+                            <div id="homeDaysValue" class="v">∞</div>
                         </div>
                         <div class="hero-stat">
-                            <div id="homeVolumeLabel" class="k"><span>حجم باقی‌مانده</span></div>
-                            <div id="homeVolumeValue" class="v"><span>—</span></div>
+                            <div id="homeVolumeLabel" class="k">حجم باقی‌مانده</div>
+                            <div id="homeVolumeValue" class="v">∞</div>
                         </div>
                     </div>
                     <div class="hero-cta"><button class="btn btn-primary" id="copyMainBtn" type="button"><i class="fa-regular fa-copy"></i><span id="copyMainText">کپی لینک اشتراک</span></button><button class="btn btn-ghost" id="qrMainBtn" type="button"><i class="fa-solid fa-qrcode"></i><span id="qrMainText">نمایش QR</span></button></div>
@@ -1900,55 +2013,55 @@ html[dir="ltr"] .pkg-popular {
                 <div class="stat-cards">
                     <div class="stat-card">
                         <div class="stat-title"><i class="fa-solid fa-chart-line"></i><span id="usedStatLabel">مصرف شده</span></div>
-                        <div><span id="usedStatValue" class="stat-number">0</span><span id="usedUnit" class="stat-unit">گیگابایت</span></div>
+                        <div><span id="usedStatValue" class="stat-number">۰</span><span id="usedUnit" class="stat-unit">بایت</span></div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-title"><i class="fa-solid fa-database"></i><span id="totalStatLabel">حجم کل</span></div>
-                        <div><span id="totalStatValue" class="stat-number">0</span><span class="stat-unit">گیگابایت</span></div>
+                        <div class="stat-title"><i class="fa-solid fa-database"></i><span id="totalStatLabel">کل حجم</span></div>
+                        <div><span id="totalStatValue" class="stat-number">∞</span><span class="stat-unit">گیگابایت</span></div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-title"><i class="fa-regular fa-clock"></i><span id="remainStatLabel">باقی‌مانده</span></div>
-                        <div><span id="remainStatValue" class="stat-number">0</span><span class="stat-unit">گیگابایت</span></div>
+                        <div><span id="remainStatValue" class="stat-number">∞</span><span class="stat-unit">گیگابایت</span></div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-title"><i class="fa-regular fa-calendar"></i><span id="expiryStatLabel">انقضا</span></div>
-                        <div><span id="expiryDatePreview" class="stat-number" style="font-size:1rem;">—</span></div>
-                        <div id="statusChip"><i class="fa-solid fa-circle-check"></i><span> فعال</span></div>
+                        <div><span id="expiryDatePreview" class="stat-number" style="font-size:1rem;">نامحدود</span></div>
+                        <div id="statusChip"><i class="fa-solid fa-circle-check"></i> فعال</div>
                     </div>
                 </div>
                 <div class="traffic-row">
-                    <div class="traffic-item"><i class="fa-solid fa-arrow-down"></i><span id="downloadVal">۰</span><small id="downloadLabel">دریافت</small></div>
-                    <div class="traffic-item"><i class="fa-solid fa-arrow-up"></i><span id="uploadVal">۰</span><small id="uploadLabel">ارسال</small></div>
+                    <div class="traffic-item"><i class="fa-solid fa-arrow-down"></i><span id="downloadVal">۰ بایت</span><small id="downloadLabel">دریافت</small></div>
+                    <div class="traffic-item"><i class="fa-solid fa-arrow-up"></i><span id="uploadVal">۰ بایت</span><small id="uploadLabel">ارسال</small></div>
                 </div>
                 <div id="interactiveChartContainer" class="panel chart-panel">
                     <div class="chart-head"><span class="chart-title"><i class="fa-solid fa-chart-area"></i><span id="chartHeadLabel">مصرف ۷ روز اخیر</span></span></div>
                     <div id="chartWrap" class="chart-svg-wrap">    <svg class="sparkline-svg" viewBox="0 0 100 25" preserveAspectRatio="none" aria-hidden="true">
       <defs>
         <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.32" />
-          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.0" />
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.32"></stop>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.0"></stop>
         </linearGradient>
       </defs>
-      <path id="chartAreaPath" d="" fill="url(#chartGlow)" />
-      <path id="chartLinePath" d="" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+      <path id="chartAreaPath" d="M 4 25 L 4 22 L 19.333333333333336 22 L 34.66666666666667 22 L 50 22 L 65.33333333333334 22 L 80.66666666666667 22 L 96 22 L 96 25 Z" fill="url(#chartGlow)"></path>
+      <path id="chartLinePath" d="M 4 22 L 19.333333333333336 22 L 34.66666666666667 22 L 50 22 L 65.33333333333334 22 L 80.66666666666667 22 L 96 22" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
     </svg>
-                        <div id="chartGuideLine" class="chart-guide"></div>
-                        <div id="chartDotsLayer" style="position:absolute;inset:0;z-index:4;"></div>
-                        <div id="chartTooltip" class="chart-tooltip"></div>
+                        <div id="chartGuideLine" class="chart-guide" style="display: none;"></div>
+                        <div id="chartDotsLayer" style="position:absolute;inset:0;z-index:4;"><button type="button" class="chart-hit" aria-label="۱۴۰۵/۰۷/۱۱" style="left: 4%;"></button><div class="chart-dot" style="left: 4%; top: 88%;"></div><button type="button" class="chart-hit" aria-label="۱۴۰۵/۰۷/۱۲" style="left: 19.3333%;"></button><div class="chart-dot" style="left: 19.3333%; top: 88%;"></div><button type="button" class="chart-hit" aria-label="۱۴۰۵/۰۷/۱۳" style="left: 34.6667%;"></button><div class="chart-dot" style="left: 34.6667%; top: 88%;"></div><button type="button" class="chart-hit" aria-label="۱۴۰۵/۰۷/۱۴" style="left: 50%;"></button><div class="chart-dot" style="left: 50%; top: 88%;"></div><button type="button" class="chart-hit" aria-label="۱۴۰۵/۰۷/۱۵" style="left: 65.3333%;"></button><div class="chart-dot" style="left: 65.3333%; top: 88%;"></div><button type="button" class="chart-hit" aria-label="۱۴۰۵/۰۷/۱۶" style="left: 80.6667%;"></button><div class="chart-dot" style="left: 80.6667%; top: 88%;"></div><button type="button" class="chart-hit" aria-label="۱۴۰۵/۰۷/۱۷" style="left: 96%;"></button><div class="chart-dot" style="left: 96%; top: 88%;"></div></div>
+                        <div id="chartTooltip" class="chart-tooltip" style="display: none;"></div>
                     </div>
-                    <div class="chart-dates"><span id="chartStartDateLabel"></span><span id="chartEndDateLabel"></span></div>
+                    <div class="chart-dates"><span id="chartStartDateLabel">از ۱۴۰۵/۰۷/۱۱</span><span id="chartEndDateLabel">تا امروز۱۴۰۵/۰۷/۱۷</span></div>
                 </div>
                 <div class="expiry-box">
-                    <div><i class="fa-regular fa-hourglass-half"></i><span id="expiryTextLabel">زمان باقی‌مانده</span></div>
+                    <div><i class="fa-regular fa-hourglass-half"></i><span id="expiryTextLabel">اشتراک شما محدودیت زمانی ندارد</span></div>
                     <div class="countdown">
                         <div class="cd-unit">
-                            <div id="daysLeft" class="cd-number"><span>0</span></div><span id="daysLabel">روز</span>
+                            <div id="daysLeft" class="cd-number">∞</div><span id="daysLabel">روز</span>
                         </div>
                         <div class="cd-unit">
-                            <div id="hoursLeft" class="cd-number"><span>0</span></div><span id="hoursLabel">ساعت</span>
+                            <div id="hoursLeft" class="cd-number">∞</div><span id="hoursLabel">ساعت</span>
                         </div>
                         <div class="cd-unit">
-                            <div id="minutesLeft" class="cd-number"><span>0</span></div><span id="minutesLabel">دقیقه</span>
+                            <div id="minutesLeft" class="cd-number">∞</div><span id="minutesLabel">دقیقه</span>
                         </div>
                     </div>
                     <div id="lastOnlineInfo" style="margin-top:0.6rem;font-size:0.7rem;color:var(--text-secondary);"></div>
@@ -1957,30 +2070,60 @@ html[dir="ltr"] .pkg-popular {
             <section class="view scroll-hidden" data-view="config">
                 <div class="panel configs-section">
                     <div class="section-header">
-                        <div class="view-heading"><i class="fa-solid fa-key"></i><strong id="configsTitle">کانفیگ‌های اختصاصی</strong></div>
-                        <div style="display:flex;align-items:center;gap:var(--space-2);"><button id="copyAllConfigsBtn" type="button" class="copy-all-btn" title="کپی همه کانفیگ‌ها" aria-label="کپی همه کانفیگ‌ها"><i class="fa-regular fa-copy"></i><span id="copyAllText">کپی همه</span></button><span id="configCountBadge" class="count-badge">0</span></div>
+                        <div class="view-heading"><i class="fa-solid fa-key"></i><strong id="configsTitle">کانفیگ‌ها</strong></div>
+                        <div style="display:flex;align-items:center;gap:var(--space-2);"><button id="copyAllConfigsBtn" type="button" class="copy-all-btn" title="کپی همه" aria-label="کپی همه کانفیگ‌ها"><i class="fa-regular fa-copy"></i><span id="copyAllText">کپی همه</span></button><span id="configCountBadge" class="count-badge">۰</span></div>
                     </div>
-                    <div id="configListContainer" class="config-list scroll-blue">
-                        <div id="noConfigMsg" style="text-align:center;padding:2rem;"><span>در حال بارگذاری...</span></div>
-                    </div>
+                    <div id="configListContainer" class="config-list scroll-blue"><div style="text-align:center;padding:2rem;">کانفیگی موجود نیست</div></div>
                 </div>
             </section>
             <section class="view scroll-blue" data-view="application">
                 <div class="panel panel-pad" style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:var(--space-3);">
                     <div class="view-heading"><i class="fa-solid fa-download"></i><strong id="appsTitleApp">برنامه‌های پیشنهادی</strong></div>
-                    <div id="appsGridContainer" class="apps-grid scroll-blue" style="overflow-y:auto;min-height:0;"></div>
+                    <div id="appsGridContainer" class="apps-grid scroll-blue" style="overflow-y:auto;min-height:0;"><div class="app-card"><button type="button" class="app-toggle" aria-expanded="false"><span class="app-title"><i class="fa-brands fa-android"></i><span>Android</span></span><i class="fa-solid fa-chevron-down chev"></i></button><div class="app-links"><a href="https://github.com/2dust/v2rayNG/releases" target="_blank" rel="noopener" class="app-link"><span>v۲rayNG</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a><a href="https://play.google.com/store/apps/details?id=com.happproxy&amp;pcampaignid=web_share" target="_blank" rel="noopener" class="app-link"><span>Happ</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div><div class="app-card"><button type="button" class="app-toggle" aria-expanded="false"><span class="app-title"><i class="fa-brands fa-apple"></i><span>iOS</span></span><i class="fa-solid fa-chevron-down chev"></i></button><div class="app-links"><a href="https://apps.apple.com/us/app/streisand/id6450534064" target="_blank" rel="noopener" class="app-link"><span>Streisand</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a><a href="https://apps.apple.com/search?term=shadowrocket" target="_blank" rel="noopener" class="app-link"><span>Shadowrocket</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div><div class="app-card"><button type="button" class="app-toggle" aria-expanded="false"><span class="app-title"><i class="fa-brands fa-windows"></i><span>Windows</span></span><i class="fa-solid fa-chevron-down chev"></i></button><div class="app-links"><a href="https://github.com/2dust/v2rayN/releases" target="_blank" rel="noopener" class="app-link"><span>v۲rayN</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a><a href="https://github.com/MatsuriDayo/nekoray" target="_blank" rel="noopener" class="app-link"><span>Nekoray</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div><div class="app-card"><button type="button" class="app-toggle" aria-expanded="false"><span class="app-title"><i class="fa-brands fa-apple"></i><span>macOS</span></span><i class="fa-solid fa-chevron-down chev"></i></button><div class="app-links"><a href="https://github.com/yanue/V2rayU" target="_blank" rel="noopener" class="app-link"><span>V۲rayU</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a><a href="https://happ.app/" target="_blank" rel="noopener" class="app-link"><span>Happ</span> <i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div></div>
                 </div>
             </section>
             <section id="servicesView" class="view scroll-blue" data-view="services">
                 <div class="panel panel-pad" style="flex:0 0 auto;">
                     <div class="view-heading"><i class="fa-solid fa-store"></i><strong id="servicesTitleEl">خدمات و بسته‌ها</strong></div>
                 </div>
-                <div id="servicesGrid" class="services-grid"></div>
+                <div id="servicesGrid" class="services-grid"><div class="pkg-card">
+      
+      <div class="pkg-badge"><i class="fa-solid fa-box"></i> Lite</div>
+      <div class="pkg-volume">۱۰ GB</div>
+      <div class="pkg-days">۳۰ روز</div>
+      <div class="pkg-divider"></div>
+      <div class="pkg-price">۱۴۹٬۰۰۰</div>
+      <div class="pkg-currency">تومان</div>
+    </div><div class="pkg-card">
+      <div class="pkg-popular">پرفروش</div>
+      <div class="pkg-badge"><i class="fa-solid fa-box"></i> Plus</div>
+      <div class="pkg-volume">۲۰ GB</div>
+      <div class="pkg-days">۳۰ روز</div>
+      <div class="pkg-divider"></div>
+      <div class="pkg-price">۲۴۹٬۰۰۰</div>
+      <div class="pkg-currency">تومان</div>
+    </div><div class="pkg-card">
+      
+      <div class="pkg-badge"><i class="fa-solid fa-box"></i> Pro</div>
+      <div class="pkg-volume">۳۰ GB</div>
+      <div class="pkg-days">۳۰ روز</div>
+      <div class="pkg-divider"></div>
+      <div class="pkg-price">۳۵۰٬۰۰۰</div>
+      <div class="pkg-currency">تومان</div>
+    </div><div class="pkg-card">
+      
+      <div class="pkg-badge"><i class="fa-solid fa-box"></i> Pro-Plus</div>
+      <div class="pkg-volume">۴۰ GB</div>
+      <div class="pkg-days">۳۰ روز</div>
+      <div class="pkg-divider"></div>
+      <div class="pkg-price">۴۵۰٬۰۰۰</div>
+      <div class="pkg-currency">تومان</div>
+    </div></div>
                 <p id="servicesNote" class="services-contact">برای خرید و اطلاعات بیشتر با پشتیبانی تماس بگیرید.</p>
             </section>
         </main>
         <nav class="dock-wrap">
-            <div id="dock" class="dock"><button class="active dock-item" data-target="home" type="button" aria-label="خانه"><i class="fa-solid fa-house"></i><span class="dock-label" data-label="home">خانه</span><span class="dot"></span></button><button class="dock-item" data-target="status" type="button" aria-label="وضعیت"><i class="fa-solid fa-gauge-high"></i><span class="dock-label" data-label="status">وضعیت</span><span class="dot"></span></button><button class="dock-item" data-target="config" type="button" aria-label="کانفیگ"><i class="fa-solid fa-key"></i><span class="dock-label" data-label="config">کانفیگ</span><span class="dot"></span></button><button class="dock-item" data-target="application" type="button" aria-label="برنامه‌ها"><i class="fa-solid fa-mobile-screen-button"></i><span class="dock-label" data-label="application">برنامه‌ها</span><span class="dot"></span></button><button class="dock-item" data-target="services" id="servicesDockItem" type="button" aria-label="خدمات"><i class="fa-solid fa-store"></i><span class="dock-label" data-label="services">خدمات</span><span class="dot"></span></button></div>
+            <div id="dock" class="dock dock-ready"><div class="dock-pill" style="transform: translate(284px, 11.1875px); width: 80px; height: 57.5938px; opacity: 1;"></div><button class="dock-item" data-target="status" type="button" aria-label="وضعیت"><i class="fa-solid fa-chart-line"></i><span class="dock-label" data-label="status">وضعیت</span><span class="dot"></span></button><button class="dock-item" data-target="config" type="button" aria-label="کانفیگ"><i class="fa-solid fa-share-nodes"></i><span class="dock-label" data-label="config">کانفیگ</span><span class="dot"></span></button><button class="dock-item active" data-target="home" type="button" aria-label="خانه"><i class="fa-solid fa-house"></i><span class="dock-label" data-label="home">خانه</span><span class="dot"></span></button><button class="dock-item" data-target="application" type="button" aria-label="برنامه‌ها"><i class="fa-solid fa-mobile-screen-button"></i><span class="dock-label" data-label="application">برنامه‌ها</span><span class="dot"></span></button><button class="dock-item" data-target="services" id="servicesDockItem" type="button" aria-label="خدمات"><i class="fa-duotone fa-solid fa-cart-shopping"></i><span class="dock-label" data-label="services">خدمات</span><span class="dot"></span></button></div>
         </nav>
     </div>
     <div id="newsModal" class="modal" role="dialog" aria-modal="true">
@@ -2013,39 +2156,27 @@ html[dir="ltr"] .pkg-popular {
         </div>
     </div>
     <div class="toast hide" role="status" data-bs-animation="false" id="toastMessage" aria-live="polite"><span>Copied!</span></div>
-    <script src="assets/js/jquery.min.js"></script>
-    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
-    <script src="assets/js/bs-init.js"></script>
-    <script src="assets/js/script.js"></script>
-</body>
 
-</html>
-<script>
-// ======================== USER CONFIG ========================
+
+
+                <script>// ======================== USER CONFIG ========================
 const ENABLE_INSTALL_POPUP = true;
 const ENABLE_SERVICES_TAB = true;
 
 const SERVICES_PACKAGES = [
-  { label: "Lite",    volume: "10 GB",  days: 30, price: 170000 },
-  { label: "Plus",    volume: "20 GB",  days: 30, price: 300000, popular: true },
-  { label: "Pro",     volume: "30 GB",  days: 30, price: 450000 },
-  { label: "Pro-Plus", volume: "40 GB", days: 30, price: 600000 },
+  { label: "Lite",    volume: "10 GB",  days: 30, price: 149000 },
+  { label: "Plus",    volume: "20 GB",  days: 30, price: 249000, popular: true },
+  { label: "Pro",     volume: "30 GB",  days: 30, price: 350000 },
+  { label: "Pro-Plus", volume: "40 GB", days: 30, price: 450000 },
 ];
 
 // ======================== STATIC NEWS (editable) ========================
-// date format: YYYY-MM-DD, time format: any string (e.g. "9:00 AM" or "21:30")
 const STATIC_NEWS = [
   {
-    title: "🌐 Service disruption",
-    body: "Due to infrastructure changes, some interruptions may occur. They should resolve over time.",
-    date: "1405-05-16",
-    time: "11:06 AM"
-  },
-  {
-    title: "📢 New update",
-    body: "A new panel version with improved features has been released. Refresh the page to use them.",
-    date: "1405-05-16",
-    time: "9:00 AM"
+    title: "📢 کاهش قیمت ها",
+    body: "با توجه به جا به جای دیتاسنتر قیمت سرویس ها کاهش یافته",
+    date: "1405-06-05",
+    time: "6:33 PM"
   }
 ];
 
@@ -2111,8 +2242,8 @@ const NORMALIZED_NEWS = normalizeNews(STATIC_NEWS);
 
 // ======================== NOTIFICATION ========================
 const LAST_VISIT_KEY = 'nexus_last_news_visit';
+const NOTIFIED_IDS_KEY = 'nexus_notified_news_ids';
 
-// PWA icon (same as used in manifest)
 const PWA_ICON_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
   <defs><linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'>
     <stop offset='0%' stop-color='#40c4a2'/><stop offset='100%' stop-color='#18b2f0'/>
@@ -2131,15 +2262,28 @@ const PWA_ICON_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='512' height
 
 const PWA_ICON_URL = `data:image/svg+xml,${encodeURIComponent(PWA_ICON_SVG)}`;
 
-async function requestNotificationPermission() {
-  if (!('Notification' in window)) return false;
+// درخواست اعلان با مدیریت بهتر
+async function requestNotificationPermission(showToastMsg = true) {
+  if (!('Notification' in window)) {
+    if (showToastMsg) showToast(isPersianUI() ? 'مرورگر شما از اعلان پشتیبانی نمی‌کند' : 'Your browser does not support notifications');
+    return false;
+  }
   if (Notification.permission === 'granted') return true;
-  if (Notification.permission === 'denied') return false;
+  if (Notification.permission === 'denied') {
+    if (showToastMsg) {
+      showToast(isPersianUI() ? 'دسترسی اعلان رد شده است. لطفاً از طریق تنظیمات مرورگر آن را فعال کنید.' : 'Notification permission denied. Please enable it in browser settings.');
+    }
+    return false;
+  }
   try {
     const permission = await Notification.requestPermission();
     localStorage.setItem('nexus_notif_permission', permission);
+    if (permission === 'granted' && showToastMsg) {
+      showToast(isPersianUI() ? '✅ اعلان‌ها فعال شدند!' : '✅ Notifications enabled!');
+    }
     return permission === 'granted';
-  } catch {
+  } catch (e) {
+    console.warn('Notification request error:', e);
     return false;
   }
 }
@@ -2167,12 +2311,28 @@ function sendNotification(newsItem) {
 function checkForNewNews() {
   const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
   const now = new Date().toISOString();
+
+  let notifiedIds = [];
+  try {
+    const stored = localStorage.getItem(NOTIFIED_IDS_KEY);
+    if (stored) notifiedIds = JSON.parse(stored);
+  } catch {}
+
   const newNews = NORMALIZED_NEWS.filter(item => {
-    if (!lastVisit) return true;
     if (!item.isoDate) return false;
-    return new Date(item.isoDate) > new Date(lastVisit);
+    const isNew = !lastVisit || new Date(item.isoDate) > new Date(lastVisit);
+    const id = `${item.title}_${item.date}`;
+    const alreadyNotified = notifiedIds.includes(id);
+    return isNew && !alreadyNotified;
   });
-  newNews.forEach(item => sendNotification(item));
+
+  newNews.forEach(item => {
+    sendNotification(item);
+    const id = `${item.title}_${item.date}`;
+    notifiedIds.push(id);
+  });
+
+  localStorage.setItem(NOTIFIED_IDS_KEY, JSON.stringify(notifiedIds));
   localStorage.setItem(LAST_VISIT_KEY, now);
   updateNewsBadge(newNews.length);
 }
@@ -2180,8 +2340,26 @@ function checkForNewNews() {
 function updateNewsBadge(count) {
   const dot = document.querySelector('.notif-dot');
   if (dot) {
-    dot.style.display = count > 0 ? 'block' : 'none';
+    if (count > 0) {
+      dot.style.display = 'flex';
+      dot.textContent = count > 9 ? '9+' : count;
+    } else {
+      dot.style.display = 'none';
+    }
   }
+}
+
+// شروع پولینگ دوره‌ای برای بررسی اخبار جدید
+function startPeriodicNewsCheck(intervalMs = 60000) {
+  setInterval(() => {
+    checkForNewNews();
+  }, intervalMs);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      checkForNewNews();
+    }
+  });
 }
 
 // ======================== BACKEND VARIABLES ========================
@@ -2504,6 +2682,7 @@ function showNewsModal() {
   document.getElementById('newsModal').classList.add('show');
   fetchNews();
   updateNewsBadge(0);
+  localStorage.setItem(NOTIFIED_IDS_KEY, JSON.stringify([]));
 }
 
 function closeNewsModal() {
@@ -2642,26 +2821,43 @@ function hideChartTooltip() {
 function drawInteractiveSparkline() {
   const container = document.getElementById("interactiveChartContainer");
   if (!container) return;
+
   const totalUsedGB = usedBytes / BYTES_IN_GB;
+  const unlimitedMode = isDataUnlimited || totalGB <= 0;
   const dailyWeights = [0.08, 0.12, 0.15, 0.11, 0.18, 0.22, 0.14];
   const dailyUsageGB = dailyWeights.map(w => totalUsedGB * w);
+  const dailyPercent = dailyUsageGB.map(gb => (totalGB > 0) ? (gb / totalGB) * 100 : 0);
 
   const daysData = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    daysData.push({ date: d, usage: dailyUsageGB[6 - i] });
+    daysData.push({
+      date: d,
+      usageGB: dailyUsageGB[6 - i],
+      percent: dailyPercent[6 - i]
+    });
   }
 
   document.getElementById("chartStartDateLabel").innerText = t("chartFrom") + formatDateOnly(daysData[0].date);
   document.getElementById("chartEndDateLabel").innerText = t("chartTo") + formatDateOnly(daysData[6].date);
 
-  const maxVal = Math.max(...dailyUsageGB, 0.5);
+  let maxVal;
+  if (unlimitedMode) {
+    maxVal = Math.max(...dailyUsageGB, 0.5);
+  } else {
+    maxVal = Math.max(...dailyPercent, 0.5);
+  }
   const heightMultiplier = 16 / maxVal;
 
   const points = daysData.map((d, index) => {
     const x = 4 + index * (92 / 6);
-    const y = 22 - (d.usage * heightMultiplier);
+    let y;
+    if (unlimitedMode) {
+      y = 22 - (d.usageGB * heightMultiplier);
+    } else {
+      y = 22 - (d.percent * heightMultiplier);
+    }
     return { x, y, data: d };
   });
 
@@ -2713,7 +2909,12 @@ function drawInteractiveSparkline() {
 
       tooltip.style.display = "flex";
       const dateStr = formatDateOnly(pt.data.date);
-      const usageStr = formatFixed(pt.data.usage, 2) + " " + (isPersianUI() ? "گیگابایت" : "GB");
+      let usageStr;
+      if (unlimitedMode) {
+        usageStr = formatFixed(pt.data.usageGB, 2) + " " + (isPersianUI() ? "گیگابایت" : "GB");
+      } else {
+        usageStr = formatFixed(pt.data.percent, 1) + "%";
+      }
       tooltip.innerHTML = `<strong>${dateStr}</strong><span>${usageStr}</span>`;
 
       const tw = tooltip.offsetWidth || 120;
@@ -2863,7 +3064,6 @@ function renderConfigs() {
     if (isWireGuard) {
       const parsed = parseWireGuardLink(cfg);
       if (!parsed) {
-        // fallback
         div.innerHTML = buildConfigItemFallback(cfg, name);
         container.appendChild(div);
         return;
@@ -2912,7 +3112,6 @@ function renderConfigs() {
       container.appendChild(div);
 
     } else if (isTelegram) {
-      // لینک‌های پروکسی تلگرام
       div.innerHTML = `
         <div class="config-meta">
           <span class="config-name">${escapeHtml(name)}</span>
@@ -2932,7 +3131,6 @@ function renderConfigs() {
       container.appendChild(div);
 
     } else {
-      // لینک‌های دیگر (vmess, vless, ...)
       div.innerHTML = `
         <div class="config-meta">
           <span class="config-name">${escapeHtml(name)}</span>
@@ -2954,7 +3152,6 @@ function renderConfigs() {
   });
 }
 
-// تابع کمکی برای fallback (در صورت خطا در parse)
 function buildConfigItemFallback(cfg, name) {
   return `
     <div class="config-meta">
@@ -2997,6 +3194,26 @@ function renderApps() {
 }
 
 function getPanelTitle() { return normalize(templateVars.subTitle, "") || t("subscriptionHub"); }
+
+function checkNotificationStatus() {
+  const btn = document.getElementById('notifRequestBtn');
+  if (!btn) return;
+  if (Notification.permission === 'granted') {
+    btn.style.display = 'none';
+    return;
+  }
+  if (Notification.permission === 'default' && !window.matchMedia('(display-mode: standalone)').matches && !window.navigator.standalone) {
+    requestNotificationPermission(true).then(granted => {
+      if (granted) checkForNewNews();
+      btn.style.display = granted ? 'none' : 'inline-flex';
+    });
+    return;
+  }
+  btn.style.display = 'inline-flex';
+  if (Notification.permission === 'denied') {
+    btn.title = isPersianUI() ? 'فعال‌سازی اعلان (از تنظیمات)' : 'Enable notifications (via settings)';
+  }
+}
 
 function updateUI() {
   document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
@@ -3060,6 +3277,8 @@ function updateUI() {
   initServicesTab();
   renderHome();
   forcePersianDigitsInTextNodes();
+  // پوزیشن اولیه Pill بدون انیمیشن (بعد از رندر کامل DOM)
+  requestAnimationFrame(() => updateDockPill(true));
 }
 
 function forcePersianDigitsInTextNodes(root = document.body) {
@@ -3078,10 +3297,55 @@ function forcePersianDigitsInTextNodes(root = document.body) {
   nodes.forEach(node => { node.nodeValue = toFaDigits(node.nodeValue); });
 }
 
+// ======================== DOCK SLIDING PILL ========================
+function updateDockPill(immediate = false) {
+  const dock = document.getElementById("dock");
+  if (!dock) return;
+
+  let pill = dock.querySelector(".dock-pill");
+  if (!pill) {
+    pill = document.createElement("div");
+    pill.className = "dock-pill";
+    dock.insertBefore(pill, dock.firstChild);
+  }
+
+  const active = dock.querySelector(".dock-item.active");
+  if (!active) {
+    pill.style.opacity = "0";
+    return;
+  }
+
+  // پاک کردن انیمیشن برای پوزیشن‌دهی فوری (لود اول / ریسایز / تغییر زبان)
+  if (immediate) dock.classList.remove("dock-ready");
+
+  const dockRect = dock.getBoundingClientRect();
+  const itemRect = active.getBoundingClientRect();
+  const cs = getComputedStyle(dock);
+  const bl = parseFloat(cs.borderLeftWidth) || 0;
+  const bt = parseFloat(cs.borderTopWidth)  || 0;
+
+  const x = itemRect.left - dockRect.left - bl;
+  const y = itemRect.top  - dockRect.top  - bt;
+
+  pill.style.transform = `translate(${x}px, ${y}px)`;
+  pill.style.width     = itemRect.width  + "px";
+  pill.style.height    = itemRect.height + "px";
+  pill.style.opacity   = "1";
+
+  if (immediate) {
+    void dock.offsetWidth; // force reflow
+    requestAnimationFrame(() => dock.classList.add("dock-ready"));
+  }
+}
+
 // ======================== VIEW NAVIGATION ========================
 function switchView(target) {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === target));
   document.querySelectorAll(".dock-item").forEach(d => d.classList.toggle("active", d.dataset.target === target));
+
+  // Pill رو با انیمیشن به دکمه فعال جدید منتقل کن
+  updateDockPill(false);
+
   if (target === "status") requestAnimationFrame(drawInteractiveSparkline);
   if (target === "home") requestAnimationFrame(() => { resizeLiquidCanvas(); });
   if (target === "services") requestAnimationFrame(renderServices);
@@ -3090,28 +3354,6 @@ function switchView(target) {
 document.querySelectorAll(".dock-item").forEach(item => {
   item.addEventListener("click", () => switchView(item.dataset.target));
 });
-
-// ======================== DOCK MAGNIFICATION ========================
-(function initDockMagnify() {
-  const dock = document.getElementById("dock");
-  const items = Array.from(dock.querySelectorAll(".dock-item"));
-  const MAX_SCALE = 0.5;
-  const RANGE = 95;
-  function reset() { items.forEach(it => { it.style.transform = "translateY(0) scale(1)"; }); }
-  dock.addEventListener("pointermove", (e) => {
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-    items.forEach(it => {
-      const rect = it.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const dist = Math.abs(e.clientX - cx);
-      const influence = Math.max(0, 1 - dist / RANGE);
-      const scale = 1 + MAX_SCALE * influence;
-      const lift = -10 * influence;
-      it.style.transform = `translateY(${lift}px) scale(${scale})`;
-    });
-  });
-  dock.addEventListener("pointerleave", reset);
-})();
 
 // ======================== EVENT LISTENERS ========================
 document.getElementById("copyMainBtn").addEventListener("click", () => copyText(subLink, t("copyDone")));
@@ -3132,6 +3374,19 @@ document.getElementById('newsModal').addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNewsModal(); });
 
+// دکمه درخواست اعلان (برای iOS و موارد خاص)
+document.getElementById('notifRequestBtn')?.addEventListener('click', async function() {
+  const granted = await requestNotificationPermission(true);
+  if (granted) {
+    this.style.display = 'none';
+    checkForNewNews();
+  } else {
+    if (Notification.permission === 'denied') {
+      showToast(isPersianUI() ? 'لطفاً دسترسی اعلان را در تنظیمات مرورگر فعال کنید.' : 'Please enable notification permission in browser settings.');
+    }
+  }
+});
+
 // ======================== VIEWPORT & PWA ========================
 function handleViewportChange() {
   requestAnimationFrame(() => {
@@ -3140,6 +3395,7 @@ function handleViewportChange() {
     }
     resizeLiquidCanvas();
     drawInteractiveSparkline();
+    updateDockPill(true); // هماهنگی Pill با اندازه جدید
   });
 }
 window.addEventListener("resize", handleViewportChange);
@@ -3150,6 +3406,10 @@ function updatePwaMode() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   document.body.classList.toggle('pwa-mode', isStandalone);
   handleViewportChange();
+
+  if (isStandalone) {
+    checkNotificationStatus();
+  }
 }
 (function initRealVh() {
   const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -3409,13 +3669,18 @@ function initInstallPopup() {
 updateUI();
 initInstallPopup();
 
-requestNotificationPermission().then(permitted => {
+// درخواست اعلان اولیه برای اندروید و مرورگرهای دسکتاپ
+requestNotificationPermission(false).then(permitted => {
   if (permitted) {
     checkForNewNews();
   }
+  checkNotificationStatus();
 });
 
-setInterval(() => { if (isPersianUI()) forcePersianDigitsInTextNodes(); }, 1000);
-</script>
-</body>
-</html>
+// شروع چک دوره‌ای اخبار (هر ۶۰ ثانیه)
+startPeriodicNewsCheck(60000);
+
+setInterval(() => { if (isPersianUI()) forcePersianDigitsInTextNodes(); }, 1000);</script>
+            
+        
+    </body>
